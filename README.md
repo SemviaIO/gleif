@@ -1,0 +1,106 @@
+# gleif
+
+A Semvia semantic package over the GLEIF Legal Entity Identifier data — Level 1
+(who is who) and Level 2 (who owns whom).
+
+It ships no data. What it ships is a description: a small ontology, a Postgres
+connection descriptor carrying no credential, and three RML TriplesMaps that
+tell the Semvia federation engine how to read `lei_records` and
+`relationship_records` as RDF. Install it and 3.39 million legal entities and
+482,824 ownership relationships become queryable over SPARQL, answered by the
+database at query time. Nothing is copied and nothing is materialized.
+
+## Install
+
+```json
+{
+  "requires": {
+    "https://github.com/SemviaIO/gleif": "SemviaIO/gleif#v0.1.0"
+  }
+}
+```
+
+Any git ref works in place of the tag — a branch or a commit SHA, in the
+`owner/repo#ref` form.
+
+The connection descriptor names the database but carries **no password**. The
+installer binds it out of band: `svdb:password` is a secret-marked field, and the
+binding is keyed to the descriptor's own subject IRI,
+`https://github.com/SemviaIO/gleif/connection#semvia-test-data`, so the
+credential is released only for the destination you consented to. No credential
+appears anywhere in this repository, and none ever will.
+
+## What it maps
+
+| Source relation | TriplesMap | Yields |
+| --- | --- | --- |
+| `public.lei_records` | `LeiRecords` | one `gleif:LegalEntity` per LEI record |
+| `public.relationship_records` | `Relationships` | one reified `gleif:Relationship` per row |
+| `public.relationship_records` | `RelatedEntities` | a direct `gleif:relatedEntity` edge, child to parent |
+
+Entities are subject-keyed on their LEI, at `https://gleif.org/lei/{lei}`, so an
+entity has the same IRI whichever relation it was read from.
+
+```
+schema/
+  ontology.ttl        the classes and predicates
+  connection.ttl      where the database is (no credential)
+  legal-entities.md   the Level 1 mapping
+  relationships.md    the Level 2 mappings
+```
+
+The mappings are authored as Markdown rather than Turtle. That is not a
+convenience — a mapping is a document a human reads and argues with, and reading
+it should not require reading RDF. `sem build` materializes them into the Turtle
+the engine consumes.
+
+## The model
+
+Two classes. `gleif:LegalEntity` is every row of the Level 1 golden copy, and
+`gleif:Relationship` is a reified Level 2 relationship record.
+
+There is deliberately no `Company` / `MutualFund` / `Branch` subclass ladder. The
+GLEIF entity category rides as data on `gleif:entityCategory` instead, because an
+RML logical source over a relational connection cannot filter rows: one relation
+yields one class for every row it carries, so a declared ladder would be a
+lattice nothing ever populates.
+
+The ontology aligns five terms to GLEIF's own published vocabulary with
+`owl:equivalentClass` / `owl:equivalentProperty`. Those are live lattice edges in
+Semvia, walked in both directions, so the set is kept deliberately small and each
+edge is defended in a comment next to it — along with the ones that were
+considered and rejected.
+
+## Caveats worth knowing before you query
+
+**`gleif:relatedEntity` unions all six relationship types.** A closure over
+`gleif:relatedEntity+` from an anchor LEI walks `IS_ULTIMATELY_CONSOLIDATED_BY`
+and `IS_DIRECTLY_CONSOLIDATED_BY` edges — and also `IS_FUND-MANAGED_BY`,
+`IS_SUBFUND_OF`, `IS_FEEDER_TO` and `IS_INTERNATIONAL_BRANCH_OF`, because the
+logical source cannot filter rows. That is usually not what "who owns whom"
+means. When you want one specific kind of relationship, read the reified
+`gleif:Relationship` node and narrow on `gleif:relationshipType`; the flattened
+edge is there because a property path is cheap and a reification hop is not.
+
+**Relationship validity periods are not mapped.** GLEIF stores them in
+positional slots whose period type is not stable across rows, so mapping a slot
+to a named predicate would assert a confidently wrong triple rather than an
+absent one.
+
+**Some column names are derived, not verified.** Six are confirmed against the
+live relation; the rest follow the GLEIF golden-copy CSV header lowercased with
+`.` replaced by `_`, and are marked as derived where they appear in the mapping
+documents. A mapped column that turns out not to exist declines on its own — it
+costs its predicate and leaves the rest of the map working.
+
+**No `sh:minCount` on any mapped property.** These shapes describe a virtual
+graph over a source we do not control, and that source has nulls — 8,986 records
+carry no entity status. A shape is documentation here, not a gate the source
+could satisfy.
+
+## Licence and attribution
+
+Everything Semvia authored here is CC0 1.0 Universal — see `LICENSE`.
+
+The data is GLEIF's and is not redistributed by this package. See `NOTICE` for
+the source, GLEIF's terms of use, and what this package does and does not claim.

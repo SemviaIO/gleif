@@ -1,0 +1,35 @@
+Data source attribution
+=======================
+
+This package contains no LEI data. It contains a mapping: an ontology, a
+connection descriptor, and three RML TriplesMaps that describe how to read a
+database. Every LEI value a consumer sees is fetched from that database at query
+time and is never copied into this repository or into anything this repository
+publishes.
+
+The data those mappings read is the GLEIF Golden Copy — Level 1 (who is who) and
+Level 2 (who owns whom) — published by the Global Legal Entity Identifier
+Foundation (GLEIF).
+
+  Source:         GLEIF Golden Copy and Delta Files
+                  https://www.gleif.org/en/lei-data/gleif-golden-copy/download-the-golden-copy
+  Terms of use:   https://www.gleif.org/en/meta/lei-data-terms-of-use/
+
+GLEIF's LEI Data Terms of Use state that the data available through their Access
+Service is provided under the CC0 1.0 Universal licence. That is GLEIF's grant
+over their data, not ours, and it is reproduced here as attribution rather than
+as a representation — a consumer relying on it should read GLEIF's terms
+directly, since GLEIF may change them.
+
+"LEI", "GLEIF" and "Global LEI System" refer to GLEIF and its programme. This
+package is not affiliated with, endorsed by, or produced in cooperation with
+GLEIF.
+
+The IRIs under https://www.gleif.org/ontology/ that this package's ontology
+aligns to are GLEIF's published vocabulary terms. This package names them; it
+does not redistribute their definitions, and installing it pulls in no GLEIF
+file.
+
+Everything in this repository that Semvia authored — the ontology, the
+connection descriptor, the mapping documents, and this notice — is dedicated to
+the public domain under CC0 1.0 Universal. See LICENSE.

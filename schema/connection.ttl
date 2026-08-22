@@ -1,0 +1,50 @@
+# The relational connection the RML logical sources in this package point at.
+#
+# This descriptor is the whole reason the package can be public: it names WHERE
+# the data is, and nothing else. The credential is reached out-of-band through
+# `svdb:password`, which is `svs:secret true` and bound against this node's own
+# subject IRI — so the binding is keyed to the destination the operator consented
+# to, and no handle naming a secret store appears in the committed bytes either.
+#
+# Hence the named subject IRI below rather than a blank node: a blank node has no
+# stable identity across a parse, so there would be nothing for the keychain
+# binding to key against.
+
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix sh:   <http://www.w3.org/ns/shacl#> .
+@prefix dct:  <http://purl.org/dc/terms/> .
+@prefix svs:  <https://pkg.semvia.io/semvia/core/meta-schema#> .
+@prefix svds: <https://pkg.semvia.io/semvia/core/dataset#> .
+@prefix svdb: <https://pkg.semvia.io/semvia/rml/connection#> .
+@prefix conn: <#> .
+
+<> a svs:Schema ;
+  dct:title "GLEIF Database Connection"@en ;
+  dct:description "The svdb:PostgresConnection descriptor this package's RML logical sources resolve their relations against. Carries host, port, database, user and SSL mode; carries no credential."@en ;
+  # Absolute IRIs — a relative `<../…>` spelling would resolve against this
+  # package's baseIRI and land on an IRI nothing publishes.
+  svds:imports <https://pkg.semvia.io/semvia/core/meta-schema> ;
+  svds:imports <https://pkg.semvia.io/semvia/rml/connection> ;
+  sh:declare [
+    a sh:PrefixDeclaration ;
+    sh:prefix "conn" ;
+    sh:namespace conn:
+  ] ;
+.
+
+conn:semvia-test-data a svdb:PostgresConnection ;
+  rdfs:label "semvia-test-data (gleif)"@en ;
+  rdfs:comment "The GLEIF golden-copy database in the semvia-test-data Neon project. `gleif` is the DATABASE name and `public` is the schema holding the relations, so the mappings iterate `public.lei_records` and `public.relationship_records` — `gleif.lei_records` would name nothing, and a relation reference resolving to nothing registers with an empty Arrow schema, which the federation engine refuses."@en ;
+
+  svdb:host "ep-small-block-aymhbzd3.c-5.us-east-2.aws.neon.tech" ;
+  # An integer literal, not "5432". The shape declares sh:datatype xsd:integer,
+  # and a string here fails validation rather than being coerced.
+  svdb:port 5432 ;
+  svdb:database "gleif" ;
+  svdb:user "reader" ;
+  # Neon terminates TLS on the pooler and presents a publicly-rooted certificate,
+  # so the strictest mode the shape admits is also the one that works.
+  svdb:sslMode "verify-full" ;
+  # No svdb:password. Deliberately, and permanently: the installer binds it to
+  # this subject IRI in the OS keychain at install time.
+.
