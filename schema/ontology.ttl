@@ -1,0 +1,307 @@
+# The GLEIF legal-entity ontology — the knowledge model the RML mappings in this
+# package project `lei_records` and `relationship_records` onto.
+#
+# Two classes, deliberately. Every `lei_records` row is a `gleif:LegalEntity` and
+# every `relationship_records` row is a `gleif:Relationship`; the GLEIF entity
+# category rides as data on `gleif:entityCategory` rather than splitting the class
+# into a Company / MutualFund / Branch ladder. The reason is mechanical: an RML
+# logical source over a relational connection cannot filter rows, so one relation
+# yields one constant `rml:class` for every row it carries. A declared ladder that
+# nothing types an instance into is a lattice the data never populates, so it is
+# left undeclared until a filtered logical source exists to populate it.
+#
+# House modelling rules this file follows (monorepo CLAUDE.md, "Inference Layer"):
+#   - predicates are bare `rdf:Property` with label + comment, and carry no
+#     `rdfs:domain` / `rdfs:range`. Those are live typing declarations under
+#     rdfs2/rdfs3, and a range paired with an `sh:class` on the same path makes
+#     that constraint unfailable.
+#   - instance constraints live in `sh:property` blocks on the `svs:ClassShape`.
+#   - no `sh:minCount` on a mapped property. These shapes document a virtual
+#     graph over a source we do not control; the source has nulls (8,986 rows
+#     carry no entity status), and a shape is not a gate the source can satisfy.
+
+@prefix rdf:    <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs:   <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix owl:    <http://www.w3.org/2002/07/owl#> .
+@prefix sh:     <http://www.w3.org/ns/shacl#> .
+@prefix xsd:    <http://www.w3.org/2001/XMLSchema#> .
+@prefix dct:    <http://purl.org/dc/terms/> .
+@prefix svs:    <https://pkg.semvia.io/semvia/core/meta-schema#> .
+@prefix svds:   <https://pkg.semvia.io/semvia/core/dataset#> .
+@prefix gleif:  <#> .
+
+# GLEIF's own published ontologies, dereferenced 2026-08-22 from
+# https://www.gleif.org/ontology/{L1,Base,L2}/ (each 303s to
+# https://www.gleif.org/ontology/v1.0/<seg>/ontology.ttl).
+@prefix gleif-L1:   <https://www.gleif.org/ontology/L1/> .
+@prefix gleif-L2:   <https://www.gleif.org/ontology/L2/> .
+@prefix gleif-base: <https://www.gleif.org/ontology/Base/> .
+
+################################################################
+# Schema metadata
+################################################################
+
+<> a svs:Schema ;
+  dct:title "GLEIF Legal Entity Ontology"@en ;
+  dct:description "The classes and predicates this package's RML mappings project the GLEIF golden-copy relations onto. Two classes — a legal entity per LEI record and a reified relationship per relationship record — plus the direct child-to-parent edge a closure query walks."@en ;
+  # Absolute, not the `<../core/meta-schema>` spelling the in-monorepo schemas
+  # use: that one resolves against the monorepo layout, and from this package's
+  # baseIRI it would land on an IRI nothing publishes.
+  svds:imports <https://pkg.semvia.io/semvia/core/meta-schema> ;
+  sh:declare [
+    a sh:PrefixDeclaration ;
+    sh:prefix "gleif" ;
+    sh:namespace gleif:
+  ] ;
+.
+
+################################################################
+# Legal-entity predicates
+################################################################
+
+gleif:lei a rdf:Property ;
+  rdfs:label "LEI"@en ;
+  rdfs:comment "The 20-character ISO 17442 Legal Entity Identifier, as a literal. The entity's own IRI is minted from the same value."@en .
+
+gleif:legalName a rdf:Property ;
+  rdfs:label "legal name"@en ;
+  rdfs:comment "The entity's registered legal name, in the local alphabet."@en .
+
+gleif:entityCategory a rdf:Property ;
+  rdfs:label "entity category"@en ;
+  rdfs:comment "The GLEIF entity category token: GENERAL, FUND, SOLE_PROPRIETOR, RESIDENT_GOVERNMENT_ENTITY, BRANCH, or INTERNATIONAL_ORGANIZATION. Carried as data rather than as a subclass, because the logical source cannot be filtered per category."@en .
+
+gleif:entityStatus a rdf:Property ;
+  rdfs:label "entity status"@en ;
+  rdfs:comment "ACTIVE or INACTIVE. Null on a small minority of records, which is why no shape requires it."@en .
+
+gleif:legalJurisdiction a rdf:Property ;
+  rdfs:label "legal jurisdiction"@en ;
+  rdfs:comment "The ISO 3166 jurisdiction of formation, e.g. US-DE. A literal token, not a jurisdiction IRI."@en .
+
+gleif:legalForm a rdf:Property ;
+  rdfs:label "legal form"@en ;
+  rdfs:comment "The four-character ELF (Entity Legal Form) code, e.g. H1UM."@en .
+
+gleif:legalAddressCountry a rdf:Property ;
+  rdfs:label "legal address country"@en ;
+  rdfs:comment "The ISO 3166 country of the registered legal address."@en .
+
+gleif:legalAddressCity a rdf:Property ;
+  rdfs:label "legal address city"@en ;
+  rdfs:comment "The city of the registered legal address."@en .
+
+gleif:registrationStatus a rdf:Property ;
+  rdfs:label "registration status"@en ;
+  rdfs:comment "The LEI registration's own lifecycle status: ISSUED, LAPSED, RETIRED, MERGED, ANNULLED, DUPLICATE, PENDING_TRANSFER, PENDING_ARCHIVAL. Distinct from gleif:entityStatus, which is about the entity rather than its registration."@en .
+
+################################################################
+# Relationship predicates
+################################################################
+
+gleif:startNode a rdf:Property ;
+  rdfs:label "start node"@en ;
+  rdfs:comment "The legal entity playing the child role in the relationship — the entity that is consolidated, managed, or branched from. GLEIF reads a relationship start-to-end, so a IS_ULTIMATELY_CONSOLIDATED_BY row says the start node is consolidated by the end node."@en .
+
+gleif:endNode a rdf:Property ;
+  rdfs:label "end node"@en ;
+  rdfs:comment "The legal entity playing the parent role in the relationship."@en .
+
+gleif:relationshipType a rdf:Property ;
+  rdfs:label "relationship type"@en ;
+  rdfs:comment "The GLEIF relationship type token: IS_ULTIMATELY_CONSOLIDATED_BY, IS_DIRECTLY_CONSOLIDATED_BY, IS_FUND-MANAGED_BY, IS_SUBFUND_OF, IS_FEEDER_TO, or IS_INTERNATIONAL_BRANCH_OF."@en .
+
+gleif:relationshipStatus a rdf:Property ;
+  rdfs:label "relationship status"@en ;
+  rdfs:comment "ACTIVE or INACTIVE — whether the relationship itself still holds."@en .
+
+gleif:relatedEntity a rdf:Property ;
+  rdfs:label "related entity"@en ;
+  rdfs:comment "The direct child-to-parent edge, from a legal entity to the entity it stands in some GLEIF relationship to. This is the single-hop property path a closure query walks: `gleif:relatedEntity+` from an anchor LEI enumerates its ownership chain. It deliberately unions ALL SIX relationship types, because the logical source cannot be filtered — so the path walks fund-management and international-branch edges alongside consolidation ones. A query that means consolidation specifically must read the reified gleif:Relationship node and narrow on gleif:relationshipType instead."@en .
+
+################################################################
+# Classes
+################################################################
+
+gleif:LegalEntity a svs:ClassShape ;
+  rdfs:label "Legal Entity"@en ;
+  rdfs:comment "An entity recorded in the Global LEI System — one row of the GLEIF Level 1 golden copy. Spans every entity category the register carries, branches and sole proprietors included, because that is exactly the extent of the relation this class is mapped from."@en ;
+
+  sh:property [
+    sh:path gleif:lei ;
+    sh:datatype xsd:string ;
+    sh:maxCount 1 ;
+    sh:description "The ISO 17442 identifier."@en
+  ] ;
+
+  sh:property [
+    sh:path gleif:legalName ;
+    sh:datatype xsd:string ;
+    sh:maxCount 1 ;
+    sh:description "The registered legal name."@en
+  ] ;
+
+  sh:property [
+    sh:path gleif:entityCategory ;
+    sh:datatype xsd:string ;
+    sh:maxCount 1 ;
+    sh:description "The GLEIF entity category token."@en
+  ] ;
+
+  sh:property [
+    sh:path gleif:entityStatus ;
+    sh:datatype xsd:string ;
+    sh:maxCount 1 ;
+    sh:description "ACTIVE or INACTIVE."@en
+  ] ;
+
+  sh:property [
+    sh:path gleif:legalJurisdiction ;
+    sh:datatype xsd:string ;
+    sh:maxCount 1 ;
+    sh:description "The ISO 3166 jurisdiction of formation."@en
+  ] ;
+
+  sh:property [
+    sh:path gleif:legalForm ;
+    sh:datatype xsd:string ;
+    sh:maxCount 1 ;
+    sh:description "The ELF code."@en
+  ] ;
+
+  sh:property [
+    sh:path gleif:legalAddressCountry ;
+    sh:datatype xsd:string ;
+    sh:maxCount 1 ;
+    sh:description "The ISO 3166 country of the legal address."@en
+  ] ;
+
+  sh:property [
+    sh:path gleif:legalAddressCity ;
+    sh:datatype xsd:string ;
+    sh:maxCount 1 ;
+    sh:description "The city of the legal address."@en
+  ] ;
+
+  sh:property [
+    sh:path gleif:registrationStatus ;
+    sh:datatype xsd:string ;
+    sh:maxCount 1 ;
+    sh:description "The LEI registration's lifecycle status."@en
+  ] ;
+
+  # No sh:maxCount — an entity is related to as many entities as it has
+  # relationship rows, and the closure walks every one of them.
+  sh:property [
+    sh:path gleif:relatedEntity ;
+    sh:class gleif:LegalEntity ;
+    sh:description "An entity this one is directly related to, in any of the six GLEIF relationship types."@en
+  ] ;
+.
+
+gleif:Relationship a svs:ClassShape ;
+  rdfs:label "Relationship"@en ;
+  rdfs:comment "A reified GLEIF Level 2 relationship — one row of the relationship golden copy, carrying which entity stands in which relationship to which other, and whether it is still active. This is the accurate reading of the source; gleif:relatedEntity is the flattened edge the same row also yields."@en ;
+
+  sh:property [
+    sh:path gleif:startNode ;
+    sh:class gleif:LegalEntity ;
+    sh:maxCount 1 ;
+    sh:description "The child entity."@en
+  ] ;
+
+  sh:property [
+    sh:path gleif:endNode ;
+    sh:class gleif:LegalEntity ;
+    sh:maxCount 1 ;
+    sh:description "The parent entity."@en
+  ] ;
+
+  sh:property [
+    sh:path gleif:relationshipType ;
+    sh:datatype xsd:string ;
+    sh:maxCount 1 ;
+    sh:description "The GLEIF relationship type token."@en
+  ] ;
+
+  sh:property [
+    sh:path gleif:relationshipStatus ;
+    sh:datatype xsd:string ;
+    sh:maxCount 1 ;
+    sh:description "ACTIVE or INACTIVE."@en
+  ] ;
+.
+
+################################################################
+# Alignment to GLEIF's published ontologies
+################################################################
+#
+# `owl:equivalentClass` and `owl:equivalentProperty` are production-default
+# lattice edges here, walked in both directions: one asserted edge puts a
+# third-party class into our lattice and every subsumption read starts answering
+# over their data, with no retyping. That makes a loose alignment expensive, so
+# this block is short and each edge is defended below. Every IRI was dereferenced
+# on 2026-08-22 before it was asserted.
+
+# Aligned to RegisteredEntity, NOT to gleif-L1:LegalEntity. GLEIF's LegalEntity
+# excludes branches — gleif-L1:Branch is its sibling under RegisteredEntity, not
+# its subclass — and `lei_records` carries 1,887 BRANCH rows that this class
+# types. RegisteredEntity is "the entity a Global LEI System record is about",
+# which is exactly the extent of the relation.
+gleif:LegalEntity owl:equivalentClass gleif-L1:RegisteredEntity .
+
+# The two GLEIF classes aligned to above are re-declared as classes here. GLEIF
+# declares both as owl:Class in their own files, but this package does not import
+# those files — it names their IRIs and nothing more, deliberately, so that
+# installing it pulls in no third-party vocabulary. Without the local declaration
+# the alignment edge points at a term with no type, and the meta-schema's
+# `rdfs:subClassOf must be an rdfs:Class` constraint fails on our own class. This
+# is the minimum true axiom that closes that gap; it re-states GLEIF's own
+# declaration and adds nothing to it.
+gleif-L1:RegisteredEntity a rdfs:Class ;
+  rdfs:label "Registered Entity"@en ;
+  rdfs:isDefinedBy <https://www.gleif.org/ontology/L1/> .
+
+gleif-base:LegalEntityRelationship a rdfs:Class ;
+  rdfs:label "Legal Entity Relationship"@en ;
+  rdfs:isDefinedBy <https://www.gleif.org/ontology/Base/> .
+
+# "abstract superclass to represent a reified directed relationship" — GLEIF's
+# own words, and precisely what a relationship_records row is. Not aligned to
+# gleif-L2:LegalEntityRelationshipRecord, which is the LOU's registration
+# container around the relationship rather than the relationship itself.
+gleif:Relationship owl:equivalentClass gleif-base:LegalEntityRelationship .
+
+# Datatype properties on the entity in both models, with the same value.
+# gleif-L1:hasLegalName is rdfs:subPropertyOf gleif-base:hasNameLegalLocal, which
+# is in turn a sub-property of skos:prefLabel — so loading GLEIF's Base ontology
+# alongside this package surfaces legal names as labels, which is what we want.
+gleif:legalName owl:equivalentProperty gleif-L1:hasLegalName .
+
+# GLEIF reads a relationship child-to-parent: the start node is the entity that
+# is consolidated / managed / branched, the end node the one doing it. Both of
+# GLEIF's properties declare rdfs:domain gleif-base:LegalEntityRelationship and
+# rdfs:range gleif-base:Entity; an alignment carries those across, and both
+# conclusions are true of our data. No shape in this package targets either
+# class, so nothing is recruited into a constraint written for our own nodes.
+gleif:startNode owl:equivalentProperty gleif-L2:hasChild .
+gleif:endNode   owl:equivalentProperty gleif-L2:hasParent .
+
+# Deliberately NOT aligned, each for a stated reason:
+#
+#   gleif:lei              — gleif-L1:LEI hangs the identifier string off the
+#                            gleif-L1:LegalEntityIdentifier object, not off the
+#                            entity. Ours is on the entity. Different subject.
+#   gleif:entityStatus     — gleif-base:hasEntityStatus is an owl:ObjectProperty
+#                            ranging over named individuals (EntityStatusActive /
+#                            EntityStatusInactive). Ours is the raw "ACTIVE"
+#                            literal the column holds. Literal is not IRI.
+#   gleif:relationshipStatus — same shape against gleif-L2:hasRelationshipStatus.
+#   gleif:legalJurisdiction  — gleif-base:hasLegalJurisdiction is an object
+#                            property onto an LCC jurisdiction IRI; ours is the
+#                            "US-DE" token.
+#   gleif:relatedEntity    — GLEIF models relationships only in reified form, so
+#                            there is no published direct edge to align to. Ours
+#                            is a flattening this package invents, and it unions
+#                            six relationship types, so no narrower GLEIF term
+#                            would be honest about it either.
