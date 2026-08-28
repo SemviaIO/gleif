@@ -1,0 +1,122 @@
+# The controlled vocabulary that turns a GLEIF relationship-type token into a
+# predicate — the `svrl:` lookup the RelatedEntities mapping resolves through.
+#
+# GLEIF's relationship golden copy is a discriminated relation: one column holds
+# the parent LEI and a second says what kind of parent it is. Reading that as one
+# flat edge unions six unrelated relationships; reading it as six edges requires
+# the mapping's predicate to come from the discriminator column. It does, via
+# `rml:predicateMap` + `svrl:resolveVia`, and this file is what that resolves
+# against.
+#
+# WHY A VOCABULARY AND NOT STRING CONCATENATION. The walker could in principle
+# mint a predicate by pasting the token onto a namespace. `IS_FUND-MANAGED_BY` is
+# not a term anyone wants in a published vocabulary — it carries GLEIF's casing,
+# GLEIF's hyphen, and GLEIF's verb direction. A lookup keeps the token where it
+# belongs (as data, in `skos:notation`) and lets the ontology name its own terms.
+#
+# The concepts are ordinary workspace data, resolved at mapping-load time. Adding
+# a concept here adds an answered predicate with no edit to the mapping — which is
+# what makes this survive GLEIF adding a seventh relationship type.
+
+@prefix rdfs:  <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix skos:  <http://www.w3.org/2004/02/skos/core#> .
+@prefix sh:    <http://www.w3.org/ns/shacl#> .
+@prefix dct:   <http://purl.org/dc/terms/> .
+@prefix svs:   <https://pkg.semvia.io/semvia/core/meta-schema#> .
+@prefix svds:  <https://pkg.semvia.io/semvia/core/dataset#> .
+@prefix svrl:  <https://pkg.semvia.io/semvia/rml/lookup#> .
+@prefix gleif: <https://github.com/SemviaIO/gleif/ontology#> .
+@prefix rt:    <#> .
+
+<> a svs:Schema ;
+  dct:title "GLEIF Relationship Types"@en ;
+  dct:description "The six GLEIF Level 2 relationship types as a SKOS scheme, plus the svrl:Lookup that resolves a relationship_relationshiptype cell into the predicate the RelatedEntities mapping emits for that row."@en ;
+  # Absolute IRIs for what this package does not own; a relative `<../…>` would
+  # resolve against this package's baseIRI and land on an IRI nothing publishes.
+  svds:imports <https://pkg.semvia.io/semvia/core/meta-schema> ;
+  svds:imports <https://pkg.semvia.io/semvia/rml/lookup> ;
+  svds:imports <./ontology> ;
+  sh:declare [
+    a sh:PrefixDeclaration ;
+    sh:prefix "rt" ;
+    sh:namespace rt:
+  ] ;
+.
+
+################################################################
+# The lookup
+################################################################
+
+# Names the scheme to read and the two predicates the walker reads off each
+# concept in it: the literal a source cell must equal, and the term that match
+# selects. Both name predicates, not values.
+rt:lookup a svrl:Lookup ;
+  rdfs:label "Relationship type lookup"@en ;
+  rdfs:comment "Resolves a relationship_relationshiptype cell to the predicate that row's parent edge lands on."@en ;
+  svrl:conceptScheme rt:scheme ;
+  svrl:matchOn skos:notation ;
+  svrl:yields gleif:impliesProperty ;
+.
+
+################################################################
+# The scheme
+################################################################
+
+rt:scheme a skos:ConceptScheme ;
+  rdfs:label "GLEIF relationship types"@en ;
+  rdfs:comment "The six values relationship_relationshiptype takes across the 482,824 rows of the Level 2 golden copy. Row counts below are from the live relation and are documentation, not a constraint."@en ;
+.
+
+# GLEIF reads a relationship child-to-parent, so every notation below is a verb
+# the START node does to (or is done by) the END node. The predicates they yield
+# keep that direction: the subject is the child, the object the parent.
+
+rt:directlyConsolidatedBy a skos:Concept ;
+  skos:inScheme rt:scheme ;
+  skos:prefLabel "Is directly consolidated by"@en ;
+  skos:notation "IS_DIRECTLY_CONSOLIDATED_BY" ;
+  skos:scopeNote "126,025 rows."@en ;
+  gleif:impliesProperty gleif:directlyConsolidatedBy ;
+.
+
+rt:ultimatelyConsolidatedBy a skos:Concept ;
+  skos:inScheme rt:scheme ;
+  skos:prefLabel "Is ultimately consolidated by"@en ;
+  skos:notation "IS_ULTIMATELY_CONSOLIDATED_BY" ;
+  skos:scopeNote "132,198 rows."@en ;
+  gleif:impliesProperty gleif:ultimatelyConsolidatedBy ;
+.
+
+rt:fundManagedBy a skos:Concept ;
+  skos:inScheme rt:scheme ;
+  skos:prefLabel "Is fund-managed by"@en ;
+  # The hyphen is GLEIF's. It is preserved exactly, because this literal is
+  # compared against the column's bytes and a tidied token would match nothing.
+  skos:notation "IS_FUND-MANAGED_BY" ;
+  skos:scopeNote "148,578 rows — the single largest type, and not an ownership edge."@en ;
+  gleif:impliesProperty gleif:fundManagedBy ;
+.
+
+rt:subFundOf a skos:Concept ;
+  skos:inScheme rt:scheme ;
+  skos:prefLabel "Is subfund of"@en ;
+  skos:notation "IS_SUBFUND_OF" ;
+  skos:scopeNote "72,697 rows."@en ;
+  gleif:impliesProperty gleif:subFundOf ;
+.
+
+rt:feederTo a skos:Concept ;
+  skos:inScheme rt:scheme ;
+  skos:prefLabel "Is feeder to"@en ;
+  skos:notation "IS_FEEDER_TO" ;
+  skos:scopeNote "1,387 rows."@en ;
+  gleif:impliesProperty gleif:feederTo ;
+.
+
+rt:internationalBranchOf a skos:Concept ;
+  skos:inScheme rt:scheme ;
+  skos:prefLabel "Is international branch of"@en ;
+  skos:notation "IS_INTERNATIONAL_BRANCH_OF" ;
+  skos:scopeNote "1,939 rows."@en ;
+  gleif:impliesProperty gleif:internationalBranchOf ;
+.

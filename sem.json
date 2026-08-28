@@ -3,7 +3,7 @@
   "@type": "https://pkg.semvia.io/semvia/core/semantic-package#SemanticPackage",
   "title": "GLEIF Legal Entities",
   "description": "A semantic package over the GLEIF Level 1 and Level 2 golden-copy data held in the semvia-test-data Postgres instance. Ships a small legal-entity ontology, an svdb:PostgresConnection descriptor carrying no credential, and three RML TriplesMaps that expose lei_records and relationship_records as a virtual RDF graph — nothing is copied, every read is answered by the database.",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "owner": "SemviaIO",
   "baseIRI": "https://github.com/SemviaIO/gleif",
   "source": "./schema",
