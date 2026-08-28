@@ -22,7 +22,7 @@
 @prefix dct:   <http://purl.org/dc/terms/> .
 @prefix svs:   <https://pkg.semvia.io/semvia/core/meta-schema#> .
 @prefix svds:  <https://pkg.semvia.io/semvia/core/dataset#> .
-@prefix gleif: <https://github.com/SemviaIO/gleif/ontology#> .
+@prefix gleif: <ontology#> .
 @prefix party: <https://github.com/SemviaIO/party/ontology#> .
 
 <> a svs:Schema ;

@@ -15,7 +15,7 @@ database at query time. Nothing is copied and nothing is materialized.
 ```json
 {
   "requires": {
-    "https://github.com/SemviaIO/gleif": "SemviaIO/gleif#v0.2.0"
+    "https://github.com/SemviaIO/gleif": "SemviaIO/gleif#v0.3.0"
   }
 }
 ```
@@ -26,7 +26,7 @@ Any git ref works in place of the tag — a branch or a commit SHA, in the
 The connection descriptor names the database but carries **no password**. The
 installer binds it out of band: `svdb:password` is a secret-marked field, and the
 binding is keyed to the descriptor's own subject IRI,
-`https://github.com/SemviaIO/gleif/connection#semvia-test-data`, so the
+`https://github.com/SemviaIO/gleif/schema/connection#semvia-test-data`, so the
 credential is released only for the destination you consented to. No credential
 appears anywhere in this repository, and none ever will.
 
