@@ -70,11 +70,11 @@ party:name         a rdf:Property .
 #
 # Note what this edge does NOT do: it does not commit `gleif:LegalEntity` to
 # being a *company*. The class spans GENERAL, FUND, SOLE_PROPRIETOR, BRANCH,
-# RESIDENT_GOVERNMENT_ENTITY and INTERNATIONAL_ORGANIZATION, because an RML
-# logical source over a relational connection cannot filter rows and one
-# relation therefore yields one class for every row it carries. `party:Organization`
-# is deliberately broad enough to hold all six — that breadth is why the hub
-# draws no company/government distinction of its own.
+# RESIDENT_GOVERNMENT_ENTITY and INTERNATIONAL_ORGANIZATION, because one relation
+# yields one class for every row it carries and no subclass ladder is declared
+# yet (#4). `party:Organization` is deliberately broad enough to hold all six, and
+# stays the right hub term even after a ladder lands — the hub draws no
+# company/government distinction of its own.
 gleif:LegalEntity rdfs:subClassOf party:Organization .
 
 # 2. The LEI is the same string under two names.
@@ -113,10 +113,10 @@ gleif:legalName rdfs:subPropertyOf party:name .
 #       enough to hold both would say nothing.
 #
 #   gleif:entityCategory → any hub class ladder
-#       This is the discriminator that would have been a subclass ladder if the
-#       logical source could filter rows. Aligning the PREDICATE to a hub term
-#       would not recover the ladder, and declaring hub subclasses that nothing
-#       types an instance into is a lattice the data never populates.
+#       This is the discriminator a local subclass ladder would be built from
+#       (#4). Aligning the PREDICATE to a hub term would not recover that ladder,
+#       and declaring hub subclasses that nothing types an instance into is a
+#       lattice the data never populates.
 #
 #   gleif:legalJurisdiction → a hub jurisdiction term
 #       No such hub term exists, deliberately: sources disagree about whether a

@@ -15,7 +15,7 @@ database at query time. Nothing is copied and nothing is materialized.
 ```json
 {
   "requires": {
-    "https://github.com/SemviaIO/gleif": "SemviaIO/gleif#v0.1.0"
+    "https://github.com/SemviaIO/gleif": "SemviaIO/gleif#v0.2.0"
   }
 }
 ```
@@ -36,17 +36,19 @@ appears anywhere in this repository, and none ever will.
 | --- | --- | --- |
 | `public.lei_records` | `LeiRecords` | one `gleif:LegalEntity` per LEI record |
 | `public.relationship_records` | `Relationships` | one reified `gleif:Relationship` per row |
-| `public.relationship_records` | `RelatedEntities` | a direct `gleif:relatedEntity` edge, child to parent |
+| `public.relationship_records` | `RelatedEntities` | one of six typed child-to-parent edges, chosen per row by the relationship type |
 
 Entities are subject-keyed on their LEI, at `https://gleif.org/lei/{lei}`, so an
 entity has the same IRI whichever relation it was read from.
 
 ```
 schema/
-  ontology.ttl        the classes and predicates
-  connection.ttl      where the database is (no credential)
-  legal-entities.md   the Level 1 mapping
-  relationships.md    the Level 2 mappings
+  ontology.ttl             the classes and predicates
+  connection.ttl           where the database is (no credential)
+  legal-entities.md        the Level 1 mapping
+  relationships.md         the Level 2 reified mapping
+  relationship-types.ttl   the six relationship types as a SKOS scheme, and the lookup over it
+  related-entities.ttl     the Level 2 typed-edge mapping
 ```
 
 The mappings are authored as Markdown rather than Turtle. That is not a
@@ -54,16 +56,32 @@ convenience — a mapping is a document a human reads and argues with, and readi
 it should not require reading RDF. `sem build` materializes them into the Turtle
 the engine consumes.
 
+`related-entities.ttl` is the exception, and the file says why in its header: its
+predicate is chosen per row from a column, and the Markdown surface puts the
+predicate in the `###` heading, where it can only be a constant. Rather than
+author the wrong mapping in the nicer format, that one map drops to Turtle.
+
 ## The model
 
 Two classes. `gleif:LegalEntity` is every row of the Level 1 golden copy, and
 `gleif:Relationship` is a reified Level 2 relationship record.
 
-There is deliberately no `Company` / `MutualFund` / `Branch` subclass ladder. The
-GLEIF entity category rides as data on `gleif:entityCategory` instead, because an
-RML logical source over a relational connection cannot filter rows: one relation
-yields one class for every row it carries, so a declared ladder would be a
-lattice nothing ever populates.
+There is no `Company` / `MutualFund` / `Branch` subclass ladder yet. The GLEIF
+entity category rides as data on `gleif:entityCategory` instead: one relation
+yields one class for every row it carries, so a ladder would have been a lattice
+nothing ever populates. `rml:SQL2008Query` now makes a per-category filtered
+source expressible, so the ladder is tracked in
+[#4](https://github.com/SemviaIO/gleif/issues/4) rather than ruled out.
+
+The relationship types, by contrast, *do* split — not into classes but into
+predicates. A `rml:predicateMap` can carry `rml:reference` plus a
+`svrl:resolveVia` lookup, which makes the predicate a function of the
+discriminator column: one relation, one scan, six edges. Whether the engine
+pushes the row condition into Postgres or evaluates it as a residual is not yet
+measured against the live source. The vocabulary that decides which token
+means which predicate is ordinary workspace data in `relationship-types.ttl`, so
+a seventh GLEIF relationship type is a new `skos:Concept` and not a mapping
+edit.
 
 The ontology aligns five terms to GLEIF's own published vocabulary with
 `owl:equivalentClass` / `owl:equivalentProperty`. Those are live lattice edges in
@@ -73,14 +91,23 @@ considered and rejected.
 
 ## Caveats worth knowing before you query
 
-**`gleif:relatedEntity` unions all six relationship types.** A closure over
-`gleif:relatedEntity+` from an anchor LEI walks `IS_ULTIMATELY_CONSOLIDATED_BY`
-and `IS_DIRECTLY_CONSOLIDATED_BY` edges — and also `IS_FUND-MANAGED_BY`,
-`IS_SUBFUND_OF`, `IS_FEEDER_TO` and `IS_INTERNATIONAL_BRANCH_OF`, because the
-logical source cannot filter rows. That is usually not what "who owns whom"
-means. When you want one specific kind of relationship, read the reified
-`gleif:Relationship` node and narrow on `gleif:relationshipType`; the flattened
-edge is there because a property path is cheap and a reification hop is not.
+**Name the edge you mean; `gleif:relatedEntity` is still the union.** Each row of
+the Level 2 copy lands on the edge its relationship type names —
+`gleif:directlyConsolidatedBy`, `gleif:ultimatelyConsolidatedBy`,
+`gleif:fundManagedBy`, `gleif:subFundOf`, `gleif:feederTo`,
+`gleif:internationalBranchOf` — so `gleif:directlyConsolidatedBy+` walks a
+consolidation chain and nothing else. All six are declared
+`rdfs:subPropertyOf gleif:relatedEntity`, so that edge still answers as their
+union and a closure over it still enumerates every relationship regardless of
+kind. It is the right question sometimes; it is just no longer the only one you
+can ask. Reading `gleif:relatedEntity+` when you meant ownership will walk
+fund-management and branch edges too, which is usually not what "who owns whom"
+means.
+
+**`gleif:ultimatelyConsolidatedBy` is already transitive.** GLEIF computes it, so
+it is a shortcut to the root of the chain rather than another rung. Walk
+`gleif:directlyConsolidatedBy+` to climb; read
+`gleif:ultimatelyConsolidatedBy` once to arrive.
 
 **Relationship validity periods are not mapped.** GLEIF stores them in
 positional slots whose period type is not stable across rows, so mapping a slot

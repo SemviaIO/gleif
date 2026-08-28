@@ -5,24 +5,23 @@
 Projects the GLEIF Level 2 golden copy — `public.relationship_records`, 482,824 rows and
 54 columns in the `gleif` database — onto RDF twice, from the same relation.
 
-`Relationships` is the accurate reading: one reified `gleif:Relationship` node per row,
-carrying which entity stands in which relationship to which other. `RelatedEntities` is
-the flattened reading of the same row: a direct `gleif:relatedEntity` edge from child to
-parent, which is the single-hop property path an ownership-closure query walks as
-`gleif:relatedEntity+`.
+This document holds the first reading: one reified `gleif:Relationship` node per row,
+carrying which entity stands in which relationship to which other, plus the relationship's
+own status. The second reading — the same row as a typed child-to-parent edge on the
+entity — lives in [`related-entities.ttl`](related-entities.ttl), which is the one mapping
+in this package authored in Turtle rather than Markdown. That file opens with why.
 
 Two TriplesMaps over one physical table is deliberate and supported — the federation
 engine keys a registered table on the TriplesMap's local name, not on the relation, so
 `Relationships` and `RelatedEntities` register as two tables over the same Postgres
 relation.
 
-> **The flattened edge unions all six relationship types.** `IS_ULTIMATELY_CONSOLIDATED_BY`,
-> `IS_DIRECTLY_CONSOLIDATED_BY`, `IS_FUND-MANAGED_BY`, `IS_SUBFUND_OF`, `IS_FEEDER_TO` and
-> `IS_INTERNATIONAL_BRANCH_OF` all become the same `gleif:relatedEntity` edge, because a
-> relational logical source cannot filter rows. A closure over it therefore walks
-> fund-management and branch edges alongside consolidation ones. A query that means
-> consolidation specifically reads the reified `gleif:Relationship` node and narrows on
-> `gleif:relationshipType`; that is what the first TriplesMap is for.
+> **Read this one when you want the relationship, not the edge.** A reified node is the
+> only place `gleif:relationshipStatus` lives, and the only reading that survives GLEIF
+> adding facts about a relationship rather than about its endpoints. If all you want is
+> the ownership chain, walk the typed edges instead — they carry the relationship type in
+> the predicate, so a closure over `gleif:directlyConsolidatedBy+` no longer drags
+> fund-management and branch edges along with it.
 
 > **Column names.** The three `relationship_*` node and type columns are confirmed
 > against the live relation; `relationship_relationshipstatus` is derived from the GLEIF
@@ -75,27 +74,3 @@ ACTIVE or INACTIVE — whether the relationship itself still holds, as distinct 
 whether either endpoint entity does. Derived, unverified.
 
 ::[reference](http://w3id.org/rml/reference) "relationship_relationshipstatus"
-
-## RelatedEntities
-
-The same rows read as a direct child-to-parent edge. The subject is the child entity
-itself — the same IRI the LeiRecords map mints — so the edge lands on the legal entity
-rather than on a relationship node, and a closure query needs no reification hop.
-
-::[source](http://w3id.org/rml/source) [semvia-test-data](connection#semvia-test-data)
-::[referenceFormulation](http://w3id.org/rml/referenceFormulation) [SQL2008Table](http://w3id.org/rml/SQL2008Table)
-::[iterator](http://w3id.org/rml/iterator) "public.relationship_records"
-::[template](http://w3id.org/rml/template) "https://gleif.org/lei/{relationship_startnode_nodeid}"
-::[class](http://w3id.org/rml/class) [LegalEntity](ontology#LegalEntity)
-
-Typing the subject as a legal entity here is not a second, weaker definition of the
-class — it is the same entity, asserted from a second relation, and it is true of every
-row: an endpoint of a GLEIF relationship record is by construction an entity in the
-register.
-
-### relatedEntity
-
-The parent entity. All six relationship types collapse onto this one edge; see the
-caveat above.
-
-::[template](http://w3id.org/rml/template) "https://gleif.org/lei/{relationship_endnode_nodeid}"

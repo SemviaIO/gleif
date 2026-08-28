@@ -1,0 +1,86 @@
+# The RelatedEntities mapping — GLEIF relationship rows read as typed parent
+# edges on the child entity, rather than as reified relationship nodes.
+#
+# WHY THIS ONE MAP IS TURTLE AND EVERY OTHER IS MARKDOWN. The rest of this
+# package is authored in Markdown, on the principle that a mapping is a document
+# a human reads and argues with. That surface routes each `::` line to a minted
+# glue node by predicate IRI, and it puts the predicate itself in the `###`
+# heading — as a constant. A discriminated predicate map needs `rml:reference`
+# and `svrl:resolveVia` on the *predicate* side of the same block whose object
+# side already claims `rml:template`, and the heading grammar has no slot for
+# that. Growing one would mean growing an expression layer into the `###` line,
+# which the surface deliberately does not have. So this map drops to Turtle and
+# says why, rather than the package silently doing the wrong thing in Markdown.
+#
+# WHAT THE DISCRIMINATION BUYS. One relation, one scan, six predicates. The
+# walker expands the predicate map below at mapping-load time into one
+# constant-predicate object map per concept in the relationship-type scheme, each
+# conditioned on `relationship_relationshiptype` holding that concept's notation
+# — and the engine pushes that condition into the source, so a query for
+# `gleif:fundManagedBy` reads a filtered relation instead of all 482,824 rows.
+
+@prefix rdfs:  <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix dct:   <http://purl.org/dc/terms/> .
+@prefix rml:   <http://w3id.org/rml/> .
+@prefix svs:   <https://pkg.semvia.io/semvia/core/meta-schema#> .
+@prefix svds:  <https://pkg.semvia.io/semvia/core/dataset#> .
+@prefix svrl:  <https://pkg.semvia.io/semvia/rml/lookup#> .
+@prefix : <#> .
+
+<> a svs:Schema ;
+  dct:title "GLEIF Related Entities Mapping"@en ;
+  dct:description "The relationship golden copy read a second time as typed child-to-parent edges on the legal entity, with the edge chosen per row by the relationship_relationshiptype discriminator."@en ;
+  svds:imports <https://pkg.semvia.io/semvia/core/meta-schema> ;
+  svds:imports <https://pkg.semvia.io/semvia/rml/lookup> ;
+  svds:imports <./ontology> ;
+  svds:imports <./relationship-types> ;
+.
+
+# Two TriplesMaps over one physical table is deliberate and supported — the
+# federation engine keys a registered table on the TriplesMap's local name, not
+# on the relation, so this and `Relationships` register as two tables over the
+# same Postgres relation. The local name is unchanged from when this map lived in
+# relationships.md, so the table identity is unchanged too.
+:RelatedEntities a rml:TriplesMap ;
+  rdfs:label "RelatedEntities" ;
+  rdfs:comment "The same relationship rows read as a direct child-to-parent edge. The subject is the child entity itself — the same IRI the LeiRecords map mints — so the edge lands on the legal entity rather than on a relationship node, and a closure query needs no reification hop."@en ;
+
+  # The explicit `a rml:…` on each glue node below is not decoration. The
+  # Markdown surface emits it from the map rule's `map:outputType`; hand-authored
+  # Turtle has no such rule, and the RML shapes check the node's type through
+  # `sh:class`, so omitting it is a validation failure rather than a shorthand.
+  rml:logicalSource [
+    a rml:LogicalSource ;
+    rml:source <connection#semvia-test-data> ;
+    rml:referenceFormulation rml:SQL2008Table ;
+    rml:iterator "public.relationship_records"
+  ] ;
+
+  # Typing the subject as a legal entity here is not a second, weaker definition
+  # of the class — it is the same entity, asserted from a second relation, and it
+  # is true of every row: an endpoint of a GLEIF relationship record is by
+  # construction an entity in the register.
+  rml:subjectMap [
+    a rml:SubjectMap ;
+    rml:template "https://gleif.org/lei/{relationship_startnode_nodeid}" ;
+    rml:class <ontology#LegalEntity>
+  ] ;
+
+  # The discriminated predicate map. `rml:reference` names the column whose value
+  # decides the predicate; `svrl:resolveVia` names the lookup that turns that
+  # value into a term. Neither side is a constant, and that is the whole point:
+  # adding a seventh GLEIF relationship type is a concept in
+  # relationship-types.ttl, not an edit here.
+  rml:predicateObjectMap [
+    a rml:PredicateObjectMap ;
+    rml:predicateMap [
+      a rml:PredicateMap ;
+      rml:reference "relationship_relationshiptype" ;
+      svrl:resolveVia <relationship-types#lookup>
+    ] ;
+    rml:objectMap [
+      a rml:ObjectMap ;
+      rml:template "https://gleif.org/lei/{relationship_endnode_nodeid}"
+    ]
+  ] ;
+.

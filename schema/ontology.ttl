@@ -1,14 +1,20 @@
 # The GLEIF legal-entity ontology — the knowledge model the RML mappings in this
 # package project `lei_records` and `relationship_records` onto.
 #
+# A relationship row is read twice: once reified as a `gleif:Relationship`, and
+# once as a typed parent edge on the child entity. The second reading is what a
+# closure query walks, and which edge a row lands on is decided by its
+# `relationship_relationshiptype` cell — see `relationship-types.ttl`.
+#
 # Two classes, deliberately. Every `lei_records` row is a `gleif:LegalEntity` and
 # every `relationship_records` row is a `gleif:Relationship`; the GLEIF entity
 # category rides as data on `gleif:entityCategory` rather than splitting the class
-# into a Company / MutualFund / Branch ladder. The reason is mechanical: an RML
-# logical source over a relational connection cannot filter rows, so one relation
-# yields one constant `rml:class` for every row it carries. A declared ladder that
-# nothing types an instance into is a lattice the data never populates, so it is
-# left undeclared until a filtered logical source exists to populate it.
+# into a Company / MutualFund / Branch ladder. That was mechanical when this
+# package was written: a relational logical source could only name a relation, so
+# one relation yielded one constant `rml:class` for every row it carried, and a
+# ladder nothing types an instance into is a lattice the data never populates.
+# `rml:SQL2008Query` lifted that limit — the ladder is now expressible, and is
+# tracked in #4 rather than ruled out here.
 #
 # House modelling rules this file follows (monorepo CLAUDE.md, "Inference Layer"):
 #   - predicates are bare `rdf:Property` with label + comment, and carry no
@@ -69,7 +75,7 @@ gleif:legalName a rdf:Property ;
 
 gleif:entityCategory a rdf:Property ;
   rdfs:label "entity category"@en ;
-  rdfs:comment "The GLEIF entity category token: GENERAL, FUND, SOLE_PROPRIETOR, RESIDENT_GOVERNMENT_ENTITY, BRANCH, or INTERNATIONAL_ORGANIZATION. Carried as data rather than as a subclass, because the logical source cannot be filtered per category."@en .
+  rdfs:comment "The GLEIF entity category token: GENERAL, FUND, SOLE_PROPRIETOR, RESIDENT_GOVERNMENT_ENTITY, BRANCH, or INTERNATIONAL_ORGANIZATION. Carried as data rather than as a subclass. A per-category subclass ladder became expressible once a logical source could carry SQL (#4); until one is declared, this token is the only carrier of the distinction."@en .
 
 gleif:entityStatus a rdf:Property ;
   rdfs:label "entity status"@en ;
@@ -117,7 +123,59 @@ gleif:relationshipStatus a rdf:Property ;
 
 gleif:relatedEntity a rdf:Property ;
   rdfs:label "related entity"@en ;
-  rdfs:comment "The direct child-to-parent edge, from a legal entity to the entity it stands in some GLEIF relationship to. This is the single-hop property path a closure query walks: `gleif:relatedEntity+` from an anchor LEI enumerates its ownership chain. It deliberately unions ALL SIX relationship types, because the logical source cannot be filtered — so the path walks fund-management and international-branch edges alongside consolidation ones. A query that means consolidation specifically must read the reified gleif:Relationship node and narrow on gleif:relationshipType instead."@en .
+  rdfs:comment "The direct child-to-parent edge, from a legal entity to an entity it stands in ANY of the six GLEIF relationship types to. This is the single-hop property path a closure query walks: `gleif:relatedEntity+` from an anchor LEI enumerates its full ownership-and-management chain. No mapping emits it: the six typed edges below are declared its sub-properties, so rdfs7 answers it as their union while a query that means one relationship names that edge and reads only its rows. Read it when you want every edge regardless of kind, which is the honest reading of a mixed chain."@en .
+
+# The lookup axis. This predicate is never emitted by a mapping and never appears
+# on an instance — it is read off each skos:Concept in the relationship-type
+# scheme at mapping-load time, as the `svrl:yields` of the lookup that resolves
+# the discriminator column. Declaring it here keeps the vocabulary document
+# pointing at terms this ontology owns.
+gleif:impliesProperty a rdf:Property ;
+  rdfs:label "implies property"@en ;
+  rdfs:comment "Read off a concept in the relationship-type scheme: the predicate a row whose relationship_relationshiptype cell holds that concept's skos:notation should emit. Adding a concept adds an answered predicate with no edit to the mapping."@en .
+
+################################################################
+# The six typed parent edges
+################################################################
+#
+# Each is `rdfs:subPropertyOf gleif:relatedEntity`, which is what lets the union
+# survive the split at no cost: rdfs5/7 is on in the production default and a
+# read at a constant predicate position is subsumption-complete, so
+# `?e gleif:relatedEntity ?p` still answers over all six without a second scan
+# and without a duplicate predicate-object map emitting the flat edge.
+#
+# Direction is GLEIF's, child-to-parent throughout: the subject is the entity
+# being consolidated / managed / branched, the object the one doing it.
+
+gleif:directlyConsolidatedBy a rdf:Property ;
+  rdfs:subPropertyOf gleif:relatedEntity ;
+  rdfs:label "directly consolidated by"@en ;
+  rdfs:comment "The entity that directly consolidates this one's accounts — GLEIF IS_DIRECTLY_CONSOLIDATED_BY. The immediate accounting parent, one level up."@en .
+
+gleif:ultimatelyConsolidatedBy a rdf:Property ;
+  rdfs:subPropertyOf gleif:relatedEntity ;
+  rdfs:label "ultimately consolidated by"@en ;
+  rdfs:comment "The entity at the top of this one's consolidation chain — GLEIF IS_ULTIMATELY_CONSOLIDATED_BY. Already transitive in the source, so it is a shortcut to the root rather than another rung: walking it with `+` is not how you climb the chain, walking gleif:directlyConsolidatedBy is."@en .
+
+gleif:fundManagedBy a rdf:Property ;
+  rdfs:subPropertyOf gleif:relatedEntity ;
+  rdfs:label "fund-managed by"@en ;
+  rdfs:comment "The management entity of this fund — GLEIF IS_FUND-MANAGED_BY. Not an ownership edge: the manager does not own the fund, and reading this as consolidation overstates control. The largest of the six by row count."@en .
+
+gleif:subFundOf a rdf:Property ;
+  rdfs:subPropertyOf gleif:relatedEntity ;
+  rdfs:label "sub-fund of"@en ;
+  rdfs:comment "The umbrella fund this sub-fund belongs to — GLEIF IS_SUBFUND_OF."@en .
+
+gleif:feederTo a rdf:Property ;
+  rdfs:subPropertyOf gleif:relatedEntity ;
+  rdfs:label "feeder to"@en ;
+  rdfs:comment "The master fund this feeder fund invests into — GLEIF IS_FEEDER_TO. Note the direction reads oddly in English but matches the rest: the subject is the feeder, the object the master."@en .
+
+gleif:internationalBranchOf a rdf:Property ;
+  rdfs:subPropertyOf gleif:relatedEntity ;
+  rdfs:label "international branch of"@en ;
+  rdfs:comment "The head office this branch belongs to — GLEIF IS_INTERNATIONAL_BRANCH_OF. A branch is not a separate legal person, so this edge is identity rather than ownership."@en .
 
 ################################################################
 # Classes
@@ -190,18 +248,58 @@ gleif:LegalEntity a svs:ClassShape ;
     sh:description "The LEI registration's lifecycle status."@en
   ] ;
 
-  # No sh:maxCount — an entity is related to as many entities as it has
-  # relationship rows, and the closure walks every one of them.
+  # No sh:maxCount on any edge below — an entity is related to as many entities
+  # as it has relationship rows, and the closure walks every one of them.
+  #
+  # gleif:relatedEntity is the union superproperty. It stays constrained here
+  # even though no mapping emits it, because rdfs7 puts every typed edge's object
+  # on this path and the constraint should describe what a reader will see.
   sh:property [
     sh:path gleif:relatedEntity ;
     sh:class gleif:LegalEntity ;
     sh:description "An entity this one is directly related to, in any of the six GLEIF relationship types."@en
   ] ;
+
+  sh:property [
+    sh:path gleif:directlyConsolidatedBy ;
+    sh:class gleif:LegalEntity ;
+    sh:description "The entity directly consolidating this one."@en
+  ] ;
+
+  sh:property [
+    sh:path gleif:ultimatelyConsolidatedBy ;
+    sh:class gleif:LegalEntity ;
+    sh:description "The entity at the top of this one's consolidation chain."@en
+  ] ;
+
+  sh:property [
+    sh:path gleif:fundManagedBy ;
+    sh:class gleif:LegalEntity ;
+    sh:description "The management entity of this fund."@en
+  ] ;
+
+  sh:property [
+    sh:path gleif:subFundOf ;
+    sh:class gleif:LegalEntity ;
+    sh:description "The umbrella fund this sub-fund belongs to."@en
+  ] ;
+
+  sh:property [
+    sh:path gleif:feederTo ;
+    sh:class gleif:LegalEntity ;
+    sh:description "The master fund this feeder fund invests into."@en
+  ] ;
+
+  sh:property [
+    sh:path gleif:internationalBranchOf ;
+    sh:class gleif:LegalEntity ;
+    sh:description "The head office this branch belongs to."@en
+  ] ;
 .
 
 gleif:Relationship a svs:ClassShape ;
   rdfs:label "Relationship"@en ;
-  rdfs:comment "A reified GLEIF Level 2 relationship — one row of the relationship golden copy, carrying which entity stands in which relationship to which other, and whether it is still active. This is the accurate reading of the source; gleif:relatedEntity is the flattened edge the same row also yields."@en ;
+  rdfs:comment "A reified GLEIF Level 2 relationship — one row of the relationship golden copy, carrying which entity stands in which relationship to which other, and whether it is still active. This is the row-shaped reading of the source, carrying the relationship's own status and registration facts; the typed gleif:* parent edges are the entity-shaped reading the same row also yields."@en ;
 
   sh:property [
     sh:path gleif:startNode ;
@@ -302,6 +400,13 @@ gleif:endNode   owl:equivalentProperty gleif-L2:hasParent .
 #                            "US-DE" token.
 #   gleif:relatedEntity    — GLEIF models relationships only in reified form, so
 #                            there is no published direct edge to align to. Ours
-#                            is a flattening this package invents, and it unions
-#                            six relationship types, so no narrower GLEIF term
-#                            would be honest about it either.
+#                            is a flattening this package invents, and as the
+#                            union of six unrelated relationship types no
+#                            narrower GLEIF term would be honest about it.
+#   the six typed edges    — same reason, one level down. GLEIF has no direct
+#                            gleif-L2:isDirectlyConsolidatedBy either; the type
+#                            lives as a named individual on the reified record.
+#                            An alignment would have to be to that individual,
+#                            which is not a property, so there is nothing to
+#                            equate. The reified gleif:Relationship carries the
+#                            alignment for both readings.
