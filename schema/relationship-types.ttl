@@ -25,7 +25,7 @@
 @prefix svs:   <https://pkg.semvia.io/semvia/core/meta-schema#> .
 @prefix svds:  <https://pkg.semvia.io/semvia/core/dataset#> .
 @prefix svrl:  <https://pkg.semvia.io/semvia/rml/lookup#> .
-@prefix gleif: <https://github.com/SemviaIO/gleif/ontology#> .
+@prefix gleif: <ontology#> .
 @prefix rt:    <#> .
 
 <> a svs:Schema ;
