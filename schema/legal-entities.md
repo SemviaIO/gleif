@@ -4,9 +4,10 @@
 
 Projects the GLEIF Level 1 golden copy — `public.lei_records`, 3,390,198 rows and 338
 columns in the `gleif` database — onto `gleif:LegalEntity`. One TriplesMap over the whole
-relation: an RML logical source on a relational connection cannot filter rows, so one
-relation yields one class for every row it carries, and the GLEIF entity category rides
-as data on `gleif:entityCategory` rather than splitting the class.
+relation, so one relation yields one class for every row it carries and the GLEIF entity
+category rides as data on `gleif:entityCategory` rather than splitting the class. Now that
+a logical source can carry SQL, a per-category split is expressible — see
+[#4](https://github.com/SemviaIO/gleif/issues/4).
 
 Nothing here copies data. The mapping is a description the federation engine registers as
 a virtual table; every read is answered by Postgres at query time.

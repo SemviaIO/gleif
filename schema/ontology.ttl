@@ -9,11 +9,12 @@
 # Two classes, deliberately. Every `lei_records` row is a `gleif:LegalEntity` and
 # every `relationship_records` row is a `gleif:Relationship`; the GLEIF entity
 # category rides as data on `gleif:entityCategory` rather than splitting the class
-# into a Company / MutualFund / Branch ladder. The reason is mechanical: an RML
-# logical source over a relational connection cannot filter rows, so one relation
-# yields one constant `rml:class` for every row it carries. A declared ladder that
-# nothing types an instance into is a lattice the data never populates, so it is
-# left undeclared until a filtered logical source exists to populate it.
+# into a Company / MutualFund / Branch ladder. That was mechanical when this
+# package was written: a relational logical source could only name a relation, so
+# one relation yielded one constant `rml:class` for every row it carried, and a
+# ladder nothing types an instance into is a lattice the data never populates.
+# `rml:SQL2008Query` lifted that limit — the ladder is now expressible, and is
+# tracked in #4 rather than ruled out here.
 #
 # House modelling rules this file follows (monorepo CLAUDE.md, "Inference Layer"):
 #   - predicates are bare `rdf:Property` with label + comment, and carry no
@@ -74,7 +75,7 @@ gleif:legalName a rdf:Property ;
 
 gleif:entityCategory a rdf:Property ;
   rdfs:label "entity category"@en ;
-  rdfs:comment "The GLEIF entity category token: GENERAL, FUND, SOLE_PROPRIETOR, RESIDENT_GOVERNMENT_ENTITY, BRANCH, or INTERNATIONAL_ORGANIZATION. Carried as data rather than as a subclass, because the logical source cannot be filtered per category."@en .
+  rdfs:comment "The GLEIF entity category token: GENERAL, FUND, SOLE_PROPRIETOR, RESIDENT_GOVERNMENT_ENTITY, BRANCH, or INTERNATIONAL_ORGANIZATION. Carried as data rather than as a subclass. A per-category subclass ladder became expressible once a logical source could carry SQL (#4); until one is declared, this token is the only carrier of the distinction."@en .
 
 gleif:entityStatus a rdf:Property ;
   rdfs:label "entity status"@en ;

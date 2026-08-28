@@ -66,17 +66,19 @@ author the wrong mapping in the nicer format, that one map drops to Turtle.
 Two classes. `gleif:LegalEntity` is every row of the Level 1 golden copy, and
 `gleif:Relationship` is a reified Level 2 relationship record.
 
-There is deliberately no `Company` / `MutualFund` / `Branch` subclass ladder. The
-GLEIF entity category rides as data on `gleif:entityCategory` instead, because an
-RML logical source over a relational connection cannot filter rows: one relation
-yields one class for every row it carries, so a declared ladder would be a
-lattice nothing ever populates.
+There is no `Company` / `MutualFund` / `Branch` subclass ladder yet. The GLEIF
+entity category rides as data on `gleif:entityCategory` instead: one relation
+yields one class for every row it carries, so a ladder would have been a lattice
+nothing ever populates. `rml:SQL2008Query` now makes a per-category filtered
+source expressible, so the ladder is tracked in
+[#4](https://github.com/SemviaIO/gleif/issues/4) rather than ruled out.
 
 The relationship types, by contrast, *do* split — not into classes but into
 predicates. A `rml:predicateMap` can carry `rml:reference` plus a
 `svrl:resolveVia` lookup, which makes the predicate a function of the
-discriminator column: one relation, one scan, six edges, and the engine pushes
-the row condition down into Postgres. The vocabulary that decides which token
+discriminator column: one relation, one scan, six edges. Whether the engine
+pushes the row condition into Postgres or evaluates it as a residual is not yet
+measured against the live source. The vocabulary that decides which token
 means which predicate is ordinary workspace data in `relationship-types.ttl`, so
 a seventh GLEIF relationship type is a new `skos:Concept` and not a mapping
 edit.
