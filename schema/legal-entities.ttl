@@ -6,14 +6,16 @@
 # gleif:entityCategory rather than splitting the class. A per-category split is
 # tracked in https://github.com/SemviaIO/gleif/issues/4.
 #
-# WHY TURTLE. The source is a Parquet object in a public bucket, addressed by
-# svdb:key on the logical source, and the Markdown mapping surface routes no
-# svdb:key. So all three maps in this package are Turtle now; related-entities.ttl
-# was the first, for its own reason.
+# WHY TURTLE. The source is a Parquet file, declared with svdb:format on the
+# logical source, and the Markdown mapping surface has no spelling for a source
+# format. So all three maps in this package are Turtle; related-entities.ttl
+# would be Turtle regardless, for its own reason.
 #
-# THE FILE. `lei_records.parquet` carries the nine columns this map references and
-# nothing else, sorted ascending by `lei`, in row groups of 300,000 rows with a
-# page index and a bloom filter on `lei`. tools/export-parquet.py writes it from
+# THE FILE. `data/lei_records.parquet` ships inside the package archive and is
+# read with a relative path, which an installed package resolves against its own
+# root. It carries the nine columns this map references and nothing else, sorted
+# ascending by `lei`, in row groups of 300,000 rows with a page index and a bloom
+# filter on `lei`. tools/export-parquet.py writes it from
 # the Postgres golden copy and checks the footer. Every column name below is the
 # name the source relation uses, and all nine were confirmed against it when the
 # file was exported.
@@ -30,12 +32,11 @@
 
 <> a svs:Schema ;
   dct:title "GLEIF Legal Entities Mapping"@en ;
-  dct:description "The GLEIF Level 1 golden copy — 3,390,198 legal entities — read from lei_records.parquet in the public bucket as one gleif:LegalEntity per row."@en ;
+  dct:description "The GLEIF Level 1 golden copy — 3,390,198 legal entities — read from the bundled lei_records.parquet as one gleif:LegalEntity per row."@en ;
   svds:imports <https://pkg.semvia.io/semvia/core/meta-schema> ;
   svds:imports <https://pkg.semvia.io/semvia/rml/connection> ;
   svds:imports <https://pkg.semvia.io/semvia/rml/catalog> ;
   svds:imports <./ontology> ;
-  svds:imports <./connection> ;
 .
 
 # The local name is unchanged from the Markdown map it replaces, so the
@@ -49,10 +50,8 @@
   # failure rather than a shorthand.
   rml:logicalSource [
     a rml:LogicalSource ;
-    rml:source <connection#pkg-semvia-io> ;
-    # Joined to the connection's svdb:prefix by literal concatenation:
-    # semvia/gleif/@data/lei_records.parquet.
-    svdb:key "@data/lei_records.parquet" ;
+    rml:source [ a rml:RelativePathSource ; rml:path "data/lei_records.parquet" ] ;
+    rml:referenceFormulation rml:CSV ;
     svdb:format svdb:Parquet
   ] ;
 

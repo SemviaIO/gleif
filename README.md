@@ -3,12 +3,15 @@
 A Semvia semantic package over the GLEIF Legal Entity Identifier data — Level 1
 (who is who) and Level 2 (who owns whom).
 
-The package ships no data. What it ships is a description: a small ontology, a
-connection descriptor for a public bucket, and three RML TriplesMaps that tell
-the Semvia federation engine how to read two Parquet objects as RDF. Install it
-and 3.39 million legal entities and 482,824 ownership relationships become
-queryable over SPARQL, answered from the bucket at query time with HTTP range
-requests. No credential, no file to place, and no Semvia server in the path.
+The archive bundles the data: a small ontology, three RML TriplesMaps that tell
+the Semvia federation engine how to read two Parquet files as RDF, and the two
+Parquet files themselves. Install it and 3,390,198 legal entities and 482,824
+ownership relationships become queryable over SPARQL, read from files the
+package carries. No credential, no bucket, and no network once it is installed.
+
+The data ships inside the archive rather than beside it so it is versioned with
+the schema: a given version's mappings and the files they read are one artifact,
+released together by `sem publish`.
 
 ## Install
 
@@ -36,22 +39,19 @@ Either records the requirement in `sem.json`:
 It requires [`party`](https://github.com/SemviaIO/party) 0.2.0, the hub its
 alignment points into, so the installer fetches that too.
 
-The connection descriptor, `https://pkg.semvia.io/semvia/gleif/connection#pkg-semvia-io`,
-is an `svdb:BlobConnection` with no `svdb:accessKeyId`. That absence declares an
-anonymous public bucket, read over HTTP at `svdb:endpoint`: there is no secret
-to bind, so installing it raises no keychain prompt and asks for no consent.
+The archive is about 107 MB (106.5 MB gzipped, nearly all of it the two Parquet
+files); the drawer shows bytes received while it downloads.
 
 ## What it maps
 
-| Source object | TriplesMap | Yields |
+| Source file | TriplesMap | Yields |
 | --- | --- | --- |
-| `@data/lei_records.parquet` | `LeiRecords` | one `gleif:LegalEntity` per LEI record |
-| `@data/relationship_records.parquet` | `Relationships` | one reified `gleif:Relationship` per row |
-| `@data/relationship_records.parquet` | `RelatedEntities` | one of six typed child-to-parent edges, chosen per row by the relationship type |
+| `data/lei_records.parquet` | `LeiRecords` | one `gleif:LegalEntity` per LEI record |
+| `data/relationship_records.parquet` | `Relationships` | one reified `gleif:Relationship` per row |
+| `data/relationship_records.parquet` | `RelatedEntities` | one of six typed child-to-parent edges, chosen per row by the relationship type |
 
-Each key is joined to the connection's `svdb:prefix`, `semvia/gleif/`, so the
-objects are `https://pkg.semvia.io/semvia/gleif/@data/lei_records.parquet` and
-`https://pkg.semvia.io/semvia/gleif/@data/relationship_records.parquet`.
+The three mappings read the files by relative path (`rml:path "data/…"`), which
+an installed package resolves against its own root.
 
 Entities are subject-keyed on their LEI, at `https://gleif.org/lei/{lei}`, so an
 entity has the same IRI whichever file it was read from.
@@ -59,19 +59,20 @@ entity has the same IRI whichever file it was read from.
 ```
 schema/
   ontology.ttl             the classes and predicates
-  connection.ttl           the public bucket (no credential)
   legal-entities.ttl       the Level 1 mapping
   relationships.ttl        the Level 2 reified mapping
   relationship-types.ttl   the six relationship types as a SKOS scheme, and the lookup over it
   related-entities.ttl     the Level 2 typed-edge mapping
   party-alignment.ttl      lattice edges into the party hub
+data/                      the two Parquet files (not committed; packed by `sem package`)
+publish.ttl                the bucket this package is published to (not built, not packed)
 tools/
-  export-parquet.py        writes the two Parquet objects from the Postgres golden copy
+  export-parquet.py        writes the two Parquet files from the Postgres golden copy
 ```
 
-The mappings are Turtle. Each logical source names its object with `svdb:key`,
-which the Markdown mapping surface does not route. `related-entities.ttl` would
-be Turtle regardless, and its header says why: its predicate is chosen per row
+The mappings are Turtle. Each logical source declares its Parquet format with
+`svdb:format`, which the Markdown mapping surface has no spelling for.
+`related-entities.ttl` would be Turtle regardless, and its header says why: its predicate is chosen per row
 from a column, which the Markdown heading grammar cannot express.
 
 ## Physical layout
@@ -84,16 +85,17 @@ filters on the keys; and the sort order recorded in the footer. Each map
 declares the same order with `svcat:declaredSortOrder`, so a query that asks for
 it plans no sort.
 
-| Object | Rows | Bytes | Row groups | Sorted by | Bloom filters |
+| File | Rows | Bytes | Row groups | Sorted by | Bloom filters |
 | --- | ---: | ---: | ---: | --- | --- |
-| `lei_records.parquet` | 3,390,198 | 101,222,073 | 12 | `lei` | `lei` |
-| `relationship_records.parquet` | 482,824 | 5,869,457 | 2 | `relationship_startnode_nodeid`, `relationship_endnode_nodeid` | both node columns |
+| `data/lei_records.parquet` | 3,390,198 | 101,222,073 | 12 | `lei` | `lei` |
+| `data/relationship_records.parquet` | 482,824 | 5,869,457 | 2 | `relationship_startnode_nodeid`, `relationship_endnode_nodeid` | both node columns |
 
 Row groups hold 300,000 rows. Both files carry a page index and are
 zstd-compressed. Only the thirteen columns the mappings reference are exported.
 
-`tools/export-parquet.py` regenerates both from the Postgres golden copy and
-prints the counts, sizes, and footer check above. It takes the reader password
+`data/` is not committed. `tools/export-parquet.py` writes both files into it
+from the Postgres golden copy and prints the counts, sizes, and footer check
+above; run it before `sem package`. It takes the reader password
 from `PGPASSWORD`, supplied as a per-invocation prefix; no credential appears in
 the script or in this repository.
 
@@ -114,7 +116,7 @@ predicates. A `rml:predicateMap` can carry `rml:reference` plus a
 `svrl:resolveVia` lookup, which makes the predicate a function of the
 discriminator column: one file, one scan, six edges. Whether the engine
 pushes the row condition into the Parquet scan or evaluates it as a residual is
-not yet measured against the bucket. The vocabulary that decides which token
+not yet measured. The vocabulary that decides which token
 means which predicate is ordinary workspace data in `relationship-types.ttl`, so
 a seventh GLEIF relationship type is a new `skos:Concept` and not a mapping
 edit.
@@ -159,7 +161,6 @@ could satisfy.
 
 Everything Semvia authored here is CC0 1.0 Universal — see `LICENSE`.
 
-The data is GLEIF's. The package archive carries none of it; the two Parquet
-objects its mappings read are a copy of GLEIF's golden copy that Semvia
-publishes beside the archive in the `semvia-pkg` bucket. See `NOTICE` for the
-source, GLEIF's terms of use, and what this package does and does not claim.
+The data is GLEIF's, and this package does redistribute it: the archive bundles
+a copy of thirteen columns of GLEIF's golden copy. See `NOTICE` for the source,
+GLEIF's terms of use, and what this package does and does not claim.

@@ -5,13 +5,20 @@
     "en": "GLEIF Legal Entities"
   },
   "description": {
-    "en": "A semantic package over the GLEIF Level 1 and Level 2 golden copy, published as two Parquet objects in the public semvia-pkg bucket. Ships a small legal-entity ontology, an anonymous svdb:BlobConnection descriptor that needs no credential, and three RML TriplesMaps that expose lei_records.parquet and relationship_records.parquet as a virtual RDF graph — the package carries no data, and every read is answered from the bucket by HTTP range requests."
+    "en": "A semantic package over the GLEIF Level 1 and Level 2 golden copy, bundled as two Parquet files inside the archive. Ships a small legal-entity ontology and three RML TriplesMaps that expose data/lei_records.parquet and data/relationship_records.parquet as a virtual RDF graph. Needs no credential and no network once installed."
   },
   "version": "0.4.0",
   "owner": "SemviaIO",
   "baseIRI": "https://pkg.semvia.io/semvia/gleif/",
   "source": "./schema",
   "built": "./built",
+  "include": [
+    "schema/**",
+    "data/*.parquet",
+    "README.md",
+    "LICENSE",
+    "NOTICE"
+  ],
   "requires": [
     {
       "@type": "https://pkg.semvia.io/semvia/core/semantic-package#PackageRequirement",
@@ -19,5 +26,6 @@
       "versionMinimum": "0.2.0",
       "prefix": "party"
     }
-  ]
+  ],
+  "publishTo": "https://pkg.semvia.io/semvia/gleif/publish#semvia-pkg"
 }

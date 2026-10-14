@@ -1,19 +1,21 @@
 #!/usr/bin/env python3
 """Export the mapped GLEIF columns from Postgres to Parquet laid out for pruning.
 
-Writes four files:
+Writes the full golden copy into this package's `data/`, which `sem package`
+bundles into the archive:
 
-    <out>/gleif/lei_records.parquet
-    <out>/gleif/relationship_records.parquet
-    <out>/gleif-groups/lei_records.parquet
-    <out>/gleif-groups/relationship_records.parquet
+    data/lei_records.parquet
+    data/relationship_records.parquet
 
-The `gleif` pair is the full golden copy. The `gleif-groups` pair is the
-corporate-group cut: every relationship row, plus every legal entity that is a
-start or end node of one.
+With `--groups-out`, it also writes the corporate-group cut that SemviaIO/gleif-groups
+bundles — every relationship row, plus every legal entity that is a start or end
+node of one:
+
+    <groups-out>/lei_records.parquet
+    <groups-out>/relationship_records.parquet
 
 Only the thirteen columns the package's mappings reference are exported. The
-layout is chosen for a reader that fetches byte ranges over HTTP: rows sorted on
+layout is chosen for a reader that fetches byte ranges: rows sorted on
 the join key so row-group min/max statistics prune, a page index so a point
 lookup reads one page rather than one row group, a bloom filter on each key a
 query binds, and the sort order recorded in the footer.
@@ -23,7 +25,7 @@ The credential never reaches this script's arguments or source. `psql` reads
 per-invocation prefix:
 
     PGPASSWORD="$(op read 'op://development/<item>/password')" \\
-        python3 tools/export-parquet.py --out ./parquet
+        python3 tools/export-parquet.py --groups-out ../gleif-groups/data
 
 Requires `psql` on PATH and `pyarrow` >= 19 (per-column bloom filter options).
 """
@@ -48,6 +50,8 @@ DEFAULT_HOST = "ep-small-block-aymhbzd3.c-5.us-east-2.aws.neon.tech"
 DEFAULT_PORT = "5432"
 DEFAULT_DATABASE = "gleif"
 DEFAULT_USER = "reader"
+
+PACKAGE_DATA = Path(__file__).resolve().parent.parent / "data"
 
 LEI_COLUMNS = [
     "lei",
@@ -150,7 +154,8 @@ def check(path: Path, sort: list[str], bloom: list[str]) -> bool:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--out", type=Path, required=True)
+    parser.add_argument("--out", type=Path, default=PACKAGE_DATA)
+    parser.add_argument("--groups-out", type=Path)
     parser.add_argument("--host", default=DEFAULT_HOST)
     parser.add_argument("--port", default=DEFAULT_PORT)
     parser.add_argument("--database", default=DEFAULT_DATABASE)
@@ -165,19 +170,21 @@ def main() -> None:
     lei = fetch(conninfo, "public.lei_records", LEI_COLUMNS)
     relationships = fetch(conninfo, "public.relationship_records", RELATIONSHIP_COLUMNS)
 
-    endpoints = pc.unique(
-        pa.chunked_array(
-            relationships["relationship_startnode_nodeid"].chunks + relationships["relationship_endnode_nodeid"].chunks
-        )
-    )
-    group_lei = lei.filter(pc.is_in(lei["lei"], value_set=endpoints))
-
     outputs = [
-        (lei, args.out / "gleif" / "lei_records.parquet", LEI_SORT, LEI_BLOOM),
-        (relationships, args.out / "gleif" / "relationship_records.parquet", RELATIONSHIP_SORT, RELATIONSHIP_BLOOM),
-        (group_lei, args.out / "gleif-groups" / "lei_records.parquet", LEI_SORT, LEI_BLOOM),
-        (relationships, args.out / "gleif-groups" / "relationship_records.parquet", RELATIONSHIP_SORT, RELATIONSHIP_BLOOM),
+        (lei, args.out / "lei_records.parquet", LEI_SORT, LEI_BLOOM),
+        (relationships, args.out / "relationship_records.parquet", RELATIONSHIP_SORT, RELATIONSHIP_BLOOM),
     ]
+    if args.groups_out is not None:
+        endpoints = pc.unique(
+            pa.chunked_array(
+                relationships["relationship_startnode_nodeid"].chunks + relationships["relationship_endnode_nodeid"].chunks
+            )
+        )
+        group_lei = lei.filter(pc.is_in(lei["lei"], value_set=endpoints))
+        outputs += [
+            (group_lei, args.groups_out / "lei_records.parquet", LEI_SORT, LEI_BLOOM),
+            (relationships, args.groups_out / "relationship_records.parquet", RELATIONSHIP_SORT, RELATIONSHIP_BLOOM),
+        ]
     for table, path, sort, bloom in outputs:
         write(table, path, sort, bloom)
 

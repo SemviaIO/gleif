@@ -2,8 +2,8 @@
 # edges on the child entity, rather than as reified relationship nodes.
 #
 # WHY TURTLE. Every map in this package is Turtle because its source is a
-# Parquet object addressed by svdb:key, which the Markdown mapping surface does
-# not route. This one would need Turtle regardless: the Markdown surface puts the
+# Parquet file declared with svdb:format, which the Markdown mapping surface has
+# no spelling for. This one would need Turtle regardless: the Markdown surface puts the
 # predicate in the `###` heading, as a constant, and a discriminated predicate
 # map needs `rml:reference` and `svrl:resolveVia` on the *predicate* side of the
 # same block whose object side already claims `rml:template`. The heading
@@ -37,7 +37,6 @@
   svds:imports <https://pkg.semvia.io/semvia/rml/catalog> ;
   svds:imports <./ontology> ;
   svds:imports <./relationship-types> ;
-  svds:imports <./connection> ;
 .
 
 # Two TriplesMaps over one file is deliberate and supported — the federation
@@ -53,8 +52,8 @@
   # validation failure rather than a shorthand.
   rml:logicalSource [
     a rml:LogicalSource ;
-    rml:source <connection#pkg-semvia-io> ;
-    svdb:key "@data/relationship_records.parquet" ;
+    rml:source [ a rml:RelativePathSource ; rml:path "data/relationship_records.parquet" ] ;
+    rml:referenceFormulation rml:CSV ;
     svdb:format svdb:Parquet
   ] ;
 

@@ -1,0 +1,41 @@
+# Where this package is published: the semvia-pkg R2 bucket that
+# pkg.semvia.io fronts. `sem.json` names this subject in `publishTo`. The
+# document sits outside `schema/` and outside `include`, so it is neither built
+# nor packed: a consumer has no use for the publisher's write destination.
+#
+# The descriptor has no svdb:accessKeyId yet. The R2 API token this publish
+# writes with does not exist when the package is first cut; whoever mints it
+# adds its access key id here and binds svdb:secretAccessKey against this
+# subject IRI in the OS keychain. Until then `sem publish` has nothing to sign
+# with.
+
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix sh:   <http://www.w3.org/ns/shacl#> .
+@prefix dct:  <http://purl.org/dc/terms/> .
+@prefix svs:  <https://pkg.semvia.io/semvia/core/meta-schema#> .
+@prefix svds: <https://pkg.semvia.io/semvia/core/dataset#> .
+@prefix svdb: <https://pkg.semvia.io/semvia/rml/connection#> .
+@prefix pub:  <#> .
+
+<> a svs:Schema ;
+  dct:title "GLEIF Publish Destination"@en ;
+  dct:description "The svdb:BlobConnection this package is published to: the semvia-pkg bucket, rooted at this package's folder."@en ;
+  svds:imports <https://pkg.semvia.io/semvia/core/meta-schema> ;
+  svds:imports <https://pkg.semvia.io/semvia/rml/connection> ;
+  sh:declare [
+    a sh:PrefixDeclaration ;
+    sh:prefix "pub" ;
+    sh:namespace pub:
+  ] ;
+.
+
+pub:semvia-pkg a svdb:BlobConnection ;
+  rdfs:label "semvia-pkg (gleif)"@en ;
+  rdfs:comment "The R2 bucket behind https://pkg.semvia.io. A bucket publish writes the archive at {prefix}@v/{version}.sem.tgz, so with this prefix 0.4.0 lands at https://pkg.semvia.io/semvia/gleif/@v/0.4.0.sem.tgz."@en ;
+  svdb:bucket "semvia-pkg" ;
+  svdb:region "auto" ;
+  # The account's S3 API endpoint, not the public custom domain: a publish
+  # writes, and writes are signed against the account endpoint.
+  svdb:endpoint "https://e6f7497fa7dfb129451599a1227e629d.r2.cloudflarestorage.com" ;
+  svdb:prefix "semvia/gleif/" ;
+.

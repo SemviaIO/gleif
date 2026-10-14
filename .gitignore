@@ -1,3 +1,5 @@
 built/
+data/
+*.sem.tgz
 .DS_Store
 .mcp.json

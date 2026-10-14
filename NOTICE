@@ -1,16 +1,12 @@
-This package contains no LEI data. It contains a mapping: an ontology, a
-connection descriptor, and three RML TriplesMaps that describe how to read two
-Parquet files. Every LEI value a consumer sees is fetched from those files at
-query time and is never copied into this repository or into the package archive.
+This package contains LEI data. Its archive bundles two Parquet files, a copy
+of the GLEIF Golden Copy:
 
-The Parquet files themselves are a copy of GLEIF data, and Semvia publishes them
-beside the archive in the public semvia-pkg bucket:
-
-  https://pkg.semvia.io/semvia/gleif/@data/lei_records.parquet
-  https://pkg.semvia.io/semvia/gleif/@data/relationship_records.parquet
+  data/lei_records.parquet            every Level 1 legal entity record
+  data/relationship_records.parquet   every Level 2 relationship record
 
 They hold thirteen columns of the golden copy, unmodified apart from the column
-selection and the row order. tools/export-parquet.py is the exact recipe.
+selection and the row order. The data/ folder is not committed to this
+repository; tools/export-parquet.py is the exact recipe that writes it.
 
 The data those files hold is the GLEIF Golden Copy — Level 1 (who is who) and
 Level 2 (who owns whom) — published by the Global Legal Entity Identifier
@@ -36,6 +32,6 @@ does not redistribute their definitions, and installing it pulls in no GLEIF
 file.
 
 Everything in this repository that Semvia authored — the ontology, the
-connection descriptor, the mapping documents, the export script, and this
+publish descriptor, the mapping documents, the export script, and this
 notice — is dedicated to
 the public domain under CC0 1.0 Universal. See LICENSE.

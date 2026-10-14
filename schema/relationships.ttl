@@ -22,7 +22,8 @@
 # positional slot to a named predicate would assert a confidently wrong triple
 # rather than an absent one, so the period is neither exported nor mapped.
 #
-# THE FILE. `relationship_records.parquet` carries the four columns the two
+# THE FILE. `data/relationship_records.parquet` ships inside the package archive
+# and is read with a relative path. It carries the four columns the two
 # relationship maps reference, sorted ascending by
 # `relationship_startnode_nodeid` then `relationship_endnode_nodeid`, in row
 # groups of 300,000 rows with a page index and bloom filters on both node
@@ -41,12 +42,11 @@
 
 <> a svs:Schema ;
   dct:title "GLEIF Relationships Mapping"@en ;
-  dct:description "The GLEIF Level 2 golden copy — 482,824 relationship records — read from relationship_records.parquet in the public bucket as one reified gleif:Relationship per row."@en ;
+  dct:description "The GLEIF Level 2 golden copy — 482,824 relationship records — read from the bundled relationship_records.parquet as one reified gleif:Relationship per row."@en ;
   svds:imports <https://pkg.semvia.io/semvia/core/meta-schema> ;
   svds:imports <https://pkg.semvia.io/semvia/rml/connection> ;
   svds:imports <https://pkg.semvia.io/semvia/rml/catalog> ;
   svds:imports <./ontology> ;
-  svds:imports <./connection> ;
 .
 
 # The local name is unchanged from the Markdown map it replaces, so the
@@ -57,8 +57,8 @@
 
   rml:logicalSource [
     a rml:LogicalSource ;
-    rml:source <connection#pkg-semvia-io> ;
-    svdb:key "@data/relationship_records.parquet" ;
+    rml:source [ a rml:RelativePathSource ; rml:path "data/relationship_records.parquet" ] ;
+    rml:referenceFormulation rml:CSV ;
     svdb:format svdb:Parquet
   ] ;
 
