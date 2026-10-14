@@ -1,0 +1,145 @@
+# The LeiRecords mapping — the GLEIF Level 1 golden copy projected onto
+# gleif:LegalEntity.
+#
+# One TriplesMap over the whole file, so one source yields one class for every
+# row it carries, and the GLEIF entity category rides as data on
+# gleif:entityCategory rather than splitting the class. A per-category split is
+# tracked in https://github.com/SemviaIO/gleif/issues/4.
+#
+# WHY TURTLE. The source is a Parquet file, declared with svdb:format on the
+# logical source, and the Markdown mapping surface has no spelling for a source
+# format. So all three maps in this package are Turtle; related-entities.ttl
+# would be Turtle regardless, for its own reason.
+#
+# THE FILE. `data/lei_records.parquet` ships inside the package archive and is
+# read with a relative path, which an installed package resolves against its own
+# root. It carries the nine columns this map references and nothing else, sorted
+# ascending by `lei`, in row groups of 300,000 rows with a page index and a bloom
+# filter on `lei`. tools/export-parquet.py writes it from
+# the Postgres golden copy and checks the footer. Every column name below is the
+# name the source relation uses, and all nine were confirmed against it when the
+# file was exported.
+
+@prefix rdfs:  <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix dct:   <http://purl.org/dc/terms/> .
+@prefix rml:   <http://w3id.org/rml/> .
+@prefix svs:   <https://pkg.semvia.io/semvia/core/meta-schema#> .
+@prefix svds:  <https://pkg.semvia.io/semvia/core/dataset#> .
+@prefix svdb:  <https://pkg.semvia.io/semvia/rml/connection#> .
+@prefix svcat: <https://pkg.semvia.io/semvia/rml/catalog#> .
+@prefix gleif: <ontology#> .
+@prefix : <#> .
+
+<> a svs:Schema ;
+  dct:title "GLEIF Legal Entities Mapping"@en ;
+  dct:description "The GLEIF Level 1 golden copy — 3,390,198 legal entities — read from the bundled lei_records.parquet as one gleif:LegalEntity per row."@en ;
+  svds:imports <https://pkg.semvia.io/semvia/core/meta-schema> ;
+  svds:imports <https://pkg.semvia.io/semvia/rml/connection> ;
+  svds:imports <https://pkg.semvia.io/semvia/rml/catalog> ;
+  svds:imports <./ontology> ;
+.
+
+# The local name is unchanged from the Markdown map it replaces, so the
+# registered table identity is unchanged too.
+:LeiRecords a rml:TriplesMap ;
+  rdfs:label "LeiRecords" ;
+  rdfs:comment "One legal entity per LEI record, subject-keyed on the LEI itself. Every row, every entity category — the category is carried as data rather than as a class."@en ;
+
+  # The explicit `a rml:…` on each glue node is not decoration: the RML shapes
+  # check the node's type through `sh:class`, so omitting it is a validation
+  # failure rather than a shorthand.
+  rml:logicalSource [
+    a rml:LogicalSource ;
+    rml:source [ a rml:RelativePathSource ; rml:path "data/lei_records.parquet" ] ;
+    rml:referenceFormulation rml:CSV ;
+    svdb:format svdb:Parquet
+  ] ;
+
+  rml:subjectMap [
+    a rml:SubjectMap ;
+    rml:template "https://gleif.org/lei/{lei}" ;
+    rml:class gleif:LegalEntity
+  ] ;
+
+  # The ISO 17442 identifier, also the key the subject IRI is minted from.
+  rml:predicateObjectMap [
+    a rml:PredicateObjectMap ;
+    rml:predicate gleif:lei ;
+    rml:objectMap [ a rml:ObjectMap ; rml:reference "lei" ]
+  ] ;
+
+  # The registered legal name in the local alphabet.
+  rml:predicateObjectMap [
+    a rml:PredicateObjectMap ;
+    rml:predicate gleif:legalName ;
+    rml:objectMap [ a rml:ObjectMap ; rml:reference "entity_legalname" ]
+  ] ;
+
+  # GENERAL, FUND, SOLE_PROPRIETOR, RESIDENT_GOVERNMENT_ENTITY, BRANCH, or
+  # INTERNATIONAL_ORGANIZATION — the discriminator that would have been a
+  # subclass ladder if the source were filtered.
+  rml:predicateObjectMap [
+    a rml:PredicateObjectMap ;
+    rml:predicate gleif:entityCategory ;
+    rml:objectMap [ a rml:ObjectMap ; rml:reference "entity_entitycategory" ]
+  ] ;
+
+  # ACTIVE or INACTIVE, and nullable — 8,986 rows carry no value, which is why no
+  # shape in the ontology puts an sh:minCount on it.
+  rml:predicateObjectMap [
+    a rml:PredicateObjectMap ;
+    rml:predicate gleif:entityStatus ;
+    rml:objectMap [ a rml:ObjectMap ; rml:reference "entity_entitystatus" ]
+  ] ;
+
+  # The ISO 3166 jurisdiction of formation, e.g. `US-DE`, as the literal token the
+  # column holds rather than a jurisdiction IRI.
+  rml:predicateObjectMap [
+    a rml:PredicateObjectMap ;
+    rml:predicate gleif:legalJurisdiction ;
+    rml:objectMap [ a rml:ObjectMap ; rml:reference "entity_legaljurisdiction" ]
+  ] ;
+
+  # The four-character ELF code.
+  rml:predicateObjectMap [
+    a rml:PredicateObjectMap ;
+    rml:predicate gleif:legalForm ;
+    rml:objectMap [ a rml:ObjectMap ; rml:reference "entity_legalform_entitylegalformcode" ]
+  ] ;
+
+  rml:predicateObjectMap [
+    a rml:PredicateObjectMap ;
+    rml:predicate gleif:legalAddressCountry ;
+    rml:objectMap [ a rml:ObjectMap ; rml:reference "entity_legaladdress_country" ]
+  ] ;
+
+  rml:predicateObjectMap [
+    a rml:PredicateObjectMap ;
+    rml:predicate gleif:legalAddressCity ;
+    rml:objectMap [ a rml:ObjectMap ; rml:reference "entity_legaladdress_city" ]
+  ] ;
+
+  # The LEI registration's own lifecycle status — ISSUED, LAPSED, RETIRED and
+  # friends — which is about the registration rather than the entity, and so is
+  # distinct from gleif:entityStatus.
+  rml:predicateObjectMap [
+    a rml:PredicateObjectMap ;
+    rml:predicate gleif:registrationStatus ;
+    rml:objectMap [ a rml:ObjectMap ; rml:reference "registration_registrationstatus" ]
+  ] ;
+
+  # The file's one physical order, as tools/export-parquet.py writes it. `lei` has
+  # no nulls, so the nulls placement names the same order either way; NullsFirst
+  # is the spelling the SPARQL lowering's ascending sort uses. LEIs are ASCII, so
+  # the file's byte order is the order the source delivers them in as text.
+  svcat:declaredSortOrder [
+    a svcat:SortOrder ;
+    svcat:sortKey [
+      a svcat:SortKey ;
+      svcat:sortColumnName "lei" ;
+      svcat:ordinalPosition 1 ;
+      svcat:sortDirection svcat:Ascending ;
+      svcat:nullsPlacement svcat:NullsFirst
+    ]
+  ] ;
+.

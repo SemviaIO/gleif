@@ -2,11 +2,11 @@
 #
 # In its own file, and NOT imported by schema/ontology.ttl, deliberately. A
 # consumer who wants the GLEIF virtual graph and nothing else installs this
-# package and never loads this document; a consumer who wants their GLEIF reads
-# to meet another package's reads installs the hub too. The alignment is
-# opt-in because every lattice edge here is walked at read time (#4986) and
-# therefore costs rewrite budget — a consumer who is not federating should not
-# pay for the ability to.
+# package and never loads this document. The hub vocabulary itself is a
+# requirement in sem.json, so its terms are always present; the edges into it
+# are what stay opt-in, because every lattice edge here is walked at read time
+# (#4986) and therefore costs rewrite budget — a consumer who is not federating
+# should not pay for the ability to.
 #
 # WHY A HUB EDGE AND NOT A DIRECT ONE. The alternative is aligning straight to
 # whichever package we want to meet — and it works, for exactly two packages.
@@ -23,7 +23,7 @@
 @prefix svs:   <https://pkg.semvia.io/semvia/core/meta-schema#> .
 @prefix svds:  <https://pkg.semvia.io/semvia/core/dataset#> .
 @prefix gleif: <ontology#> .
-@prefix party: <https://github.com/SemviaIO/party/ontology#> .
+@prefix party: <https://pkg.semvia.io/semvia/party/ontology#> .
 
 <> a svs:Schema ;
   dct:title "GLEIF ⇄ Party Alignment"@en ;

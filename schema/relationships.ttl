@@ -1,0 +1,122 @@
+# The Relationships mapping — the GLEIF Level 2 golden copy read as one reified
+# gleif:Relationship node per row.
+#
+# This is the first of two readings of `relationship_records.parquet`. The second —
+# the same row as a typed child-to-parent edge on the entity — is
+# related-entities.ttl. Two TriplesMaps over one file is deliberate and supported:
+# the federation engine keys a registered table on the TriplesMap's local name, not
+# on the source, so `Relationships` and `RelatedEntities` register as two tables
+# over the same object.
+#
+# READ THIS ONE WHEN YOU WANT THE RELATIONSHIP, NOT THE EDGE. A reified node is the
+# only place gleif:relationshipStatus lives, and the only reading that survives
+# GLEIF adding facts about a relationship rather than about its endpoints. If all
+# you want is the ownership chain, walk the typed edges instead — they carry the
+# relationship type in the predicate, so a closure over
+# gleif:directlyConsolidatedBy+ does not drag fund-management and branch edges
+# along with it.
+#
+# NO RELATIONSHIP PERIOD. GLEIF carries validity dates as
+# `Relationship.RelationshipPeriods.N.{StartDate,EndDate,PeriodType}`, where `N` is
+# a positional slot whose period type is not stable across rows. Mapping a
+# positional slot to a named predicate would assert a confidently wrong triple
+# rather than an absent one, so the period is neither exported nor mapped.
+#
+# THE FILE. `data/relationship_records.parquet` ships inside the package archive
+# and is read with a relative path. It carries the four columns the two
+# relationship maps reference, sorted ascending by
+# `relationship_startnode_nodeid` then `relationship_endnode_nodeid`, in row
+# groups of 300,000 rows with a page index and bloom filters on both node
+# columns. A child-first sort is what a closure climbing from a child to its
+# parents reads: every edge out of one child sits in one run of rows.
+
+@prefix rdfs:  <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix dct:   <http://purl.org/dc/terms/> .
+@prefix rml:   <http://w3id.org/rml/> .
+@prefix svs:   <https://pkg.semvia.io/semvia/core/meta-schema#> .
+@prefix svds:  <https://pkg.semvia.io/semvia/core/dataset#> .
+@prefix svdb:  <https://pkg.semvia.io/semvia/rml/connection#> .
+@prefix svcat: <https://pkg.semvia.io/semvia/rml/catalog#> .
+@prefix gleif: <ontology#> .
+@prefix : <#> .
+
+<> a svs:Schema ;
+  dct:title "GLEIF Relationships Mapping"@en ;
+  dct:description "The GLEIF Level 2 golden copy — 482,824 relationship records — read from the bundled relationship_records.parquet as one reified gleif:Relationship per row."@en ;
+  svds:imports <https://pkg.semvia.io/semvia/core/meta-schema> ;
+  svds:imports <https://pkg.semvia.io/semvia/rml/connection> ;
+  svds:imports <https://pkg.semvia.io/semvia/rml/catalog> ;
+  svds:imports <./ontology> ;
+.
+
+# The local name is unchanged from the Markdown map it replaces, so the
+# registered table identity is unchanged too.
+:Relationships a rml:TriplesMap ;
+  rdfs:label "Relationships" ;
+  rdfs:comment "One reified relationship node per row, subject-keyed on the RR-CDF natural key: the two endpoint LEIs and the relationship type, which together identify a relationship record."@en ;
+
+  rml:logicalSource [
+    a rml:LogicalSource ;
+    rml:source [ a rml:RelativePathSource ; rml:path "data/relationship_records.parquet" ] ;
+    rml:referenceFormulation rml:CSV ;
+    svdb:format svdb:Parquet
+  ] ;
+
+  rml:subjectMap [
+    a rml:SubjectMap ;
+    rml:template "https://gleif.org/relationship/{relationship_startnode_nodeid}-{relationship_endnode_nodeid}-{relationship_relationshiptype}" ;
+    rml:class gleif:Relationship
+  ] ;
+
+  # The child entity — the one that is consolidated, managed, or branched from. A
+  # template, so the object is an IRI joining the entity LeiRecords mints.
+  rml:predicateObjectMap [
+    a rml:PredicateObjectMap ;
+    rml:predicate gleif:startNode ;
+    rml:objectMap [ a rml:ObjectMap ; rml:template "https://gleif.org/lei/{relationship_startnode_nodeid}" ]
+  ] ;
+
+  # The parent entity.
+  rml:predicateObjectMap [
+    a rml:PredicateObjectMap ;
+    rml:predicate gleif:endNode ;
+    rml:objectMap [ a rml:ObjectMap ; rml:template "https://gleif.org/lei/{relationship_endnode_nodeid}" ]
+  ] ;
+
+  # The GLEIF relationship type token, and the predicate a query narrows on when it
+  # means one specific kind of relationship.
+  rml:predicateObjectMap [
+    a rml:PredicateObjectMap ;
+    rml:predicate gleif:relationshipType ;
+    rml:objectMap [ a rml:ObjectMap ; rml:reference "relationship_relationshiptype" ]
+  ] ;
+
+  # ACTIVE or INACTIVE — whether the relationship itself still holds, as distinct
+  # from whether either endpoint entity does. Nullable: 346 rows carry no value.
+  rml:predicateObjectMap [
+    a rml:PredicateObjectMap ;
+    rml:predicate gleif:relationshipStatus ;
+    rml:objectMap [ a rml:ObjectMap ; rml:reference "relationship_relationshipstatus" ]
+  ] ;
+
+  # The file's one physical order, as tools/export-parquet.py writes it. Neither
+  # node column has nulls, so the nulls placement names the same order either
+  # way; NullsFirst is the spelling the SPARQL lowering's ascending sort uses.
+  svcat:declaredSortOrder [
+    a svcat:SortOrder ;
+    svcat:sortKey [
+      a svcat:SortKey ;
+      svcat:sortColumnName "relationship_startnode_nodeid" ;
+      svcat:ordinalPosition 1 ;
+      svcat:sortDirection svcat:Ascending ;
+      svcat:nullsPlacement svcat:NullsFirst
+    ] ;
+    svcat:sortKey [
+      a svcat:SortKey ;
+      svcat:sortColumnName "relationship_endnode_nodeid" ;
+      svcat:ordinalPosition 2 ;
+      svcat:sortDirection svcat:Ascending ;
+      svcat:nullsPlacement svcat:NullsFirst
+    ]
+  ] ;
+.
